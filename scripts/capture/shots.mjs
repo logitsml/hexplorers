@@ -20,7 +20,7 @@
 //   node scripts/capture/shots.mjs --compiles out.json   attribute every pipeline, shader program and node build to the object,
 //                                                material, geometry and pass that caused it (scripts/capture/compiles-hook.js;
 //                                                diff two runs with scripts/capture/compiles-diff.mjs). Run from another
-//                                                checkout's folder (node <this>/scripts/shots.mjs) to measure that tree.
+//                                                checkout's folder (node <this>/scripts/capture/shots.mjs) to measure that tree.
 //   ... --compiles out.json --compiles-dedupe    the same, with every instanced mesh's matrix buffer named alike (an
 //                                                experiment: how many programs three's per-node buffer names cost)
 //   CHROME_PATH=...                              another Chromium (see scripts/lib/chrome.mjs)

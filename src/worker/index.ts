@@ -2,8 +2,8 @@
 // card says more than the game's own (an invitation, a room, the watch link: see preview.ts),
 // serving them the game's page with that card written in; for the game's own page, which it
 // gives the clip for the chats that play it; and for the clip itself, served in byte
-// ranges (see ranged). Everything else is the files themselves, served without it. (Where the
-// room server will live, once online play does.)
+// ranges (see ranged). Everything else is the files themselves, served without it. (The room
+// server's Worker, server/cloudflare/worker.ts, hands it whatever isn't its own.)
 
 import { TRAILER, previewFor, type Preview } from './preview';
 import { ranged } from './ranges';

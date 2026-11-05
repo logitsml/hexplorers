@@ -191,6 +191,8 @@ class Session {
   async initWorld(canvas: HTMLCanvasElement, quality: Quality, step?: (label: string, progress: number) => Promise<void>) {
     if (this.world) return this.world;
     this.world = new World(canvas, quality);
+    // (The player's keys and mouse buttons, on the title and in the editor too.)
+    this.world.rig.binds = () => useUI.getState().settings;
     await this.world.init(step);
     return this.world;
   }

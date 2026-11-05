@@ -60,6 +60,36 @@ export function toggleBuild(kind: BuildKind) {
 }
 
 /**
+ * On your turn with nothing being placed, the spots a press on the board builds at without
+ * choosing the piece first: roads where one can go, houses, and towns over your own houses (only
+ * what you can afford). Worked out once a state.
+ */
+export function quickSpots(): { roads: number[]; houses: number[]; towns: number[] } | null {
+  const { view, me, interaction } = useUI.getState();
+  if (!view || interaction.kind !== 'idle') return null;
+  const a = availability();
+  if (!a?.main) return null;
+  if (quickMemo?.view !== view || quickMemo.me !== me) {
+    quickMemo = {
+      view,
+      me,
+      spots: { roads: a.road ? legalRoads(view, me) : [], houses: a.settlement ? legalSettlements(view, me) : [], towns: a.city ? legalCities(view, me) : [] },
+    };
+  }
+  const sp = quickMemo.spots;
+  return sp.roads.length || sp.houses.length || sp.towns.length ? sp : null;
+}
+let quickMemo: { view: GameState; me: number; spots: { roads: number[]; houses: number[]; towns: number[] } } | null = null;
+
+/** The piece a quick press at a spot builds (see quickSpots): a road on an edge, a town over a house, else a house. */
+export function quickBuildAt(kind: 'vertex' | 'edge', id: number): BuildKind | null {
+  const sp = quickSpots();
+  if (!sp) return null;
+  if (kind === 'edge') return sp.roads.includes(id) ? 'road' : null;
+  return sp.towns.includes(id) ? 'city' : sp.houses.includes(id) ? 'settlement' : null;
+}
+
+/**
  * Choose where to put an expansion's build (game/builds.ts), a pick on the board of the spots its
  * moves are made at; pressed again while choosing, put the pick away. Nothing happens when it can't
  * be built: the caller says why.
@@ -149,6 +179,24 @@ export function endTurn() {
   cancelPlacement();
   sfx.play('click');
   session.act({ type: 'endTurn' });
+}
+
+/** A card to put up as the trade dialog opens (one tapped in your hand), taken once. */
+let tradeStart: Card | null = null;
+
+/** Open the trade dialog with one `r` already put up: a card tapped in your hand on your turn. */
+export function tradeFromHand(r: Card) {
+  tradeStart = r;
+  openModal('trade');
+  // (Refused, say out of turn: the card isn't kept for a later opening.)
+  if (useUI.getState().modal !== 'trade') tradeStart = null;
+}
+
+/** The card `tradeFromHand` put up, if any (the dialog takes it as it opens). */
+export function takeTradeStart(): Card | null {
+  const r = tradeStart;
+  tradeStart = null;
+  return r;
 }
 
 /** `beforeRoll`: open it on the roll too (the Supply tab's fish deals are legal then). */

@@ -1538,6 +1538,22 @@ body:has(.modal-backdrop) .quality-toast {
   cursor: default;
 }
 
+.stack.tradeable {
+  cursor: pointer;
+  transition-property: transform, opacity, filter, width, scale;
+}
+
+/* (The press's scale on its own property, so it sits on the hover's lift.) */
+.stack.tradeable:active {
+  scale: 0.96;
+}
+
+.stack.tradeable:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
 .stack-card {
   position: absolute;
   left: 0;
@@ -6118,8 +6134,18 @@ kbd {
   --tint: #6c4378;
 }
 
-.hchip.cards:active {
+.hchip.cards:active,
+.hchip.tradeable:active {
   transform: scale(0.96);
+}
+
+/* On your turn a card kind held opens a trade with it put up. */
+.hchip.tradeable {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition-property: transform;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
 }
 
 /* A development card can be played: lit, so the chip invites a tap. */
@@ -11747,4 +11773,64 @@ svg.gb-key {
   border-color: #6d8ea3;
   background: rgba(70, 120, 150, 0.1);
   color: #2c4656;
+}
+
+/* Settings, Controls: a row a binding, its name and the key (or the mouse button's job). */
+.bind-list {
+  display: grid;
+  gap: 6px;
+}
+
+.bind-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+}
+
+.bind-name {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.bind-row .seg {
+  margin: 0;
+}
+
+.bind-key {
+  min-width: 96px;
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition-property: background-color, border-color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.bind-key:active {
+  scale: 0.96;
+}
+
+.bind-key.listening {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 16%, var(--surface));
+}
+
+.bind-reset {
+  justify-self: start;
+}
+
+@media (max-width: 420px) {
+  .bind-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
 }

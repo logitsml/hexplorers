@@ -133,10 +133,10 @@ export const cardItems = (rc: CardCounts, kinds: readonly Card[]): DealItem[] =>
  * A trade of cards with other players, built by tapping: your cards to give, the kinds to ask for.
  * A kind goes one way only. `open`: asking for nothing is allowed, an open offer the others bid on.
  */
-export function CardDeal({ give, get, onGive, onGet, kinds, mine, open = false, giveLabel = 'You give', getLabel = 'You get', pick = false }: { give: CardCounts; get: CardCounts; onGive: (v: CardCounts) => void; onGet: (v: CardCounts) => void; kinds: readonly Card[]; mine: CardCounts; open?: boolean; giveLabel?: string; getLabel?: string; pick?: boolean }) {
+export function CardDeal({ give, get, onGive, onGet, kinds, mine, open = false, giveLabel = 'You give', getLabel = 'You get', pick = false, startSide = 'give' }: { give: CardCounts; get: CardCounts; onGive: (v: CardCounts) => void; onGet: (v: CardCounts) => void; kinds: readonly Card[]; mine: CardCounts; open?: boolean; giveLabel?: string; getLabel?: string; pick?: boolean; startSide?: 'give' | 'get' }) {
   const less = (rc: CardCounts, r: string) => ({ ...rc, [r]: Math.max(0, rc[r as Card] - 1) });
   // `pick` (Sea Glass): one grid of tiles, for whichever side was tapped last; what you get reads "You want".
-  const [side, setSide] = useState<'give' | 'get'>('give');
+  const [side, setSide] = useState<'give' | 'get'>(startSide);
   const giveTiles = kinds.map((r) => ({
     id: r,
     icon: CARD_ICON[r],

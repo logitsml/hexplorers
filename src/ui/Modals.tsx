@@ -27,14 +27,14 @@ import { PLAYER_PALETTE } from '../render/board/pieces';
 import { DevCard, Icon, ResourceCard } from './Cards';
 import { ExitIcon, LogEntries, ReasonButton, YieldPips, devGroups, devReason, incomeLine, playDev, useIncome, useSupplyExtras } from './Hud';
 import { useCompact } from './useCompact';
-import { buyDevCard, inventionMove, monopolyMove } from '../game/commands';
+import { buyDevCard, inventionMove, monopolyMove, takeTradeStart } from '../game/commands';
 import { Morph } from './Morph';
 import { LineIcon } from './LineIcons';
 import { useBank, useDialogView, useHand } from './hooks';
 import { sfx } from '../audio/sfx';
 import { setMuted } from '../audio/mute';
 import { MinusIcon, Modal, ResChips, ResPicker, TabPanel, Tabs, close, forgetMenu, openFromMenu, takeMenuRow } from './ModalFrame';
-import { SupplyTrade, presetSupply } from './SupplyTrade';
+import { SupplyTrade } from './SupplyTrade';
 import { CardDeal } from './TradeParts';
 import { describeCards, perRoll, suggestDiscard, supplyPrice } from './advice';
 import { explain, shortfall, whyNot } from './why';
@@ -333,8 +333,6 @@ export function keptOffer(): { give: CardCounts; get: CardCounts; to: PlayerId[]
   return lastOffer && lastOffer.game === session.host ? { give: lastOffer.give, get: lastOffer.get, to: lastOffer.to, turn: lastOffer.turn } : null;
 }
 
-/** At most what you hold, of each kind. */
-const clip = (rc: CardCounts, hand: CardCounts) => Object.fromEntries(CARDS.map((r) => [r, Math.min(rc[r], hand[r])])) as CardCounts;
 
 /**
  * Trading, in one dialog: with the other players, or with the supply (and your harbours). Its tabs
@@ -368,13 +366,18 @@ function PlayersTrade() {
   const me = useUI((s) => s.me);
   const hand = useHand(me);
   const bank = useBank();
-  const remembered = lastOffer && lastOffer.game === session.host ? lastOffer : null;
-  const [give, setGive] = useState<CardCounts>(() => (remembered ? clip(remembered.give, hand) : emptyCounts()));
-  const [get, setGet] = useState<CardCounts>(() => (remembered ? { ...remembered.get } : emptyCounts()));
+  // Each opening starts a fresh deal (an offer not taken isn't brought back), or one with the card
+  // tapped in your hand already up.
+  const [first] = useState(() => {
+    const r = takeTradeStart();
+    return r && hand[r] > 0 ? r : null;
+  });
+  const [give, setGive] = useState<CardCounts>(() => (first ? { ...emptyCounts(), [first]: 1 } : emptyCounts()));
+  const [get, setGet] = useState<CardCounts>(emptyCounts);
   // Online, whom it goes to: everyone (none picked), or only those picked.
   const online = useUI((s) => s.online !== null);
   const glass = useUI((s) => s.settings.look === 'glass');
-  const [to, setTo] = useState<PlayerId[]>(() => (online && remembered ? remembered.to.filter((p) => p !== me && view.players[p]) : []));
+  const [to, setTo] = useState<PlayerId[]>([]);
   const offer = view.trade && view.trade.proposer === me ? view.trade : null;
   // (Asking for nothing is an open offer: the others bid for what you put up.)
   const asking = totalCards(get) === 0;
@@ -389,10 +392,11 @@ function PlayersTrade() {
     lastOffer = { game: session.host, give, get, to, turn: view.turn };
     session.act({ type: 'offerTrade', give, get, ...(to.length > 0 && { to }) });
   };
+  // The same deal with the supply, made at once (no second press on the Supply tab).
   const toSupply = () => {
-    if (!price) return;
-    presetSupply({ give: price.pay, get: price.get, times: price.times });
-    useUI.getState().set({ modal: 'bank' });
+    if (!price?.affordable) return;
+    sfx.play('click');
+    if (!session.act({ type: 'bankTrade', give: price.pay, get: price.get, times: price.times })) close();
   };
   return (
     <>
@@ -405,7 +409,7 @@ function PlayersTrade() {
       </p>}
       {!offer && online && <OfferTo me={me} to={to} onTo={setTo} />}
       {!offer ? (
-        <CardDeal give={give} get={get} onGive={setGive} onGet={setGet} kinds={cardKinds(view)} mine={hand} open pick={glass} />
+        <CardDeal give={give} get={get} onGive={setGive} onGet={setGet} kinds={cardKinds(view)} mine={hand} open pick={glass} startSide={first ? 'get' : 'give'} />
       ) : (
         <OfferSummary give={offer.give} get={offer.get} mine />
       )}
@@ -420,7 +424,8 @@ function PlayersTrade() {
             for {price.times} {CARD_NAMES[price.get]} ({price.ratio}:1{price.ratio < 4 ? ', your harbour' : ''}).
           </span>
           {price.affordable && (
-            <button type="button" className="btn ghost small" onClick={toSupply}>
+            <button type="button" className="btn gold small" onClick={toSupply}>
+              <LineIcon name="swap" size={16} />
               Trade with the supply
             </button>
           )}
@@ -977,6 +982,7 @@ function MenuExtras() {
   const bank = useBank();
   const income = useIncome();
   const extras = useSupplyExtras();
+  const counted = useUI((s) => s.settings.supplyCounts);
   const { all: earning, text: earned } = incomeLine(income);
   // (The set's own icons where it has them, as the toolbar shows them; the view's target is drawn here.)
   const glyph = (d: ReactNode) => (
@@ -1028,9 +1034,9 @@ function MenuExtras() {
           <h4>Supply</h4>
           <div className="menu-supply">
             {RESOURCES.map((r) => (
-              <div key={r} className="bank-stack" role="img" aria-label={`${CARD_NAMES[r]} in supply: ${bank[r]}${earning > 0 ? `, about ${perRoll(income![r])} a roll for you` : ''}`}>
+              <div key={r} className="bank-stack" role="img" aria-label={`${CARD_NAMES[r]} in supply${counted ? `: ${bank[r]}` : ''}${earning > 0 ? `, about ${perRoll(income![r])} a roll for you` : ''}`}>
                 <img src={asset(CARD_ICON[r])} alt="" draggable={false} />
-                {bank[r]}
+                {counted && bank[r]}
                 <YieldPips per={earning > 0 ? income![r] : 0} />
               </div>
             ))}
@@ -1045,9 +1051,9 @@ function MenuExtras() {
           {extras.length > 0 && (
             <div className="menu-supply extra" role="group" aria-label="Commodities and oil in the supply">
               {extras.map((k) => (
-                <div key={k} className="bank-stack" role="img" aria-label={`${CARD_NAMES[k]} in supply: ${bank[k]}${earning > 0 ? `, about ${perRoll(income![k])} a roll for you` : ''}`}>
+                <div key={k} className="bank-stack" role="img" aria-label={`${CARD_NAMES[k]} in supply${counted ? `: ${bank[k]}` : ''}${earning > 0 ? `, about ${perRoll(income![k])} a roll for you` : ''}`}>
                   <img src={asset(CARD_ICON[k])} alt="" draggable={false} />
-                  {bank[k]}
+                  {counted && bank[k]}
                   <YieldPips per={earning > 0 ? income![k] : 0} />
                 </div>
               ))}

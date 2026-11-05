@@ -12,7 +12,7 @@ import { session } from '../app/session';
 import { PLAYER_PALETTE } from '../render/board/pieces';
 import { CARD_ICON, CARD_NAMES, CARD_TINT, asset } from '../game/names';
 import { tokensOf } from '../game/holdings';
-import { availability, buyDevCard, cancelPlacement, cardForSale, endTurn, openModal, rollDice, toggleBuild, toggleExtraBuild, undoLast } from '../game/commands';
+import { availability, buyDevCard, cancelPlacement, cardForSale, endTurn, openModal, rollDice, toggleBuild, toggleExtraBuild, tradeFromHand, undoLast } from '../game/commands';
 import { extraBuilds } from '../game/builds';
 import { Icon } from './Cards';
 import { Morph } from './Morph';
@@ -227,18 +227,31 @@ export function HandChips() {
   const groups = devGroups(view, me, busy);
   const cards = view.players[me].devCards.length;
   const playable = groups.some((g) => g.canPlay);
+  const trading = !!availability()?.main;
   return (
     <div className="hand-chips" data-anchor="hand">
       {/* The resources, commodities and oil once held, then the expansions' tokens (game/holdings.ts);
           an empty kind is a slim chip, and past the row's width it scrolls sideways. */}
-      {cardKinds(view).filter((r) => RESOURCES.includes(r as Resource) || hand[r] > 0).map((r) => (
-        <div key={r} className={`hchip${hand[r] === 0 ? ' empty' : ''}`} data-anchor={`hand-${r}`} role="img" aria-label={`${CARD_NAMES[r]}: ${hand[r]}`} style={{ ['--tint' as string]: CARD_TINT[r] }}>
-          <img src={asset(CARD_ICON[r])} alt="" draggable={false} />
-          <span className="n">
-            <Morph>{hand[r]}</Morph>
-          </span>
-        </div>
-      ))}
+      {cardKinds(view).filter((r) => RESOURCES.includes(r as Resource) || hand[r] > 0).map((r) => {
+        const inner = (
+          <>
+            <img src={asset(CARD_ICON[r])} alt="" draggable={false} />
+            <span className="n">
+              <Morph>{hand[r]}</Morph>
+            </span>
+          </>
+        );
+        // (On your turn, a tap opens a trade with one of these put up; oil can't be traded.)
+        return trading && r !== 'oil' && hand[r] > 0 ? (
+          <button key={r} type="button" className="hchip tradeable" data-anchor={`hand-${r}`} aria-label={`${CARD_NAMES[r]}: ${hand[r]}. Trade it`} style={{ ['--tint' as string]: CARD_TINT[r] }} onClick={() => tradeFromHand(r)}>
+            {inner}
+          </button>
+        ) : (
+          <div key={r} className={`hchip${hand[r] === 0 ? ' empty' : ''}`} data-anchor={`hand-${r}`} role="img" aria-label={`${CARD_NAMES[r]}: ${hand[r]}`} style={{ ['--tint' as string]: CARD_TINT[r] }}>
+            {inner}
+          </div>
+        );
+      })}
       {tokensOf(view, me, true).map((tk) => (
         <div key={tk.id} className={`hchip token${tk.n === 0 ? ' empty' : ''}`} data-anchor={`hand-${tk.id}`} role="img" aria-label={tk.label} style={{ ['--tint' as string]: tk.tint }}>
           <img src={asset(tk.icon)} alt="" draggable={false} />
@@ -383,8 +396,8 @@ export function CompactActions() {
 // ------------------------------------------------------------ touch aids
 
 /**
- * On touch, a tapped spot is only previewed (its ghost piece shows); this button, or a second
- * tap on the same spot, places it. It follows the spot as the camera moves.
+ * A tapped (or, confirming, clicked) spot is only previewed (its ghost piece shows); this button,
+ * or a second press on the same spot, places it. It follows the spot as the camera moves.
  */
 export function PlaceConfirm() {
   const confirm = useUI((s) => s.placeConfirm);
@@ -431,7 +444,7 @@ export function PlaceConfirm() {
               </svg>
               {confirm.label}
             </button>
-            <button className="icon-btn" onClick={() => session.input?.clearPending()} aria-label="Choose another spot">
+            <button className="icon-btn" onClick={() => session.input?.dismissPending()} aria-label="Choose another spot">
               <CloseIcon size={18} />
             </button>
           </motion.div>

@@ -370,6 +370,11 @@ export class Dice3D {
   private nextSplash = 0;
   private settled = false;
   private sinking = false;
+  /**
+   * With motion reduced the throw is left out: the dice come up out of the water where they rest,
+   * as they go under at the end (0 under, 1 up), rather than appearing there at once.
+   */
+  private rise = 1;
   /** Seconds afloat when they start to sink. */
   private sinkFrom = HOLD;
   private t = 0;
@@ -469,6 +474,7 @@ export class Dice3D {
     this.speed = Math.max(0.25, speed);
     this.t = instant ? THROW_TIME : 0;
     this.settled = this.sinking = false;
+    this.rise = instant ? 0 : 1;
     this.sinkFrom = HOLD;
     this.glowColor.value.set(color);
     this.glow.value = 0;
@@ -516,6 +522,8 @@ export class Dice3D {
       for (const d of this.dice) if (d.body.visible && camera.position.distanceTo(d.body.position) < 1.5) this.sinkFrom = Math.min(this.sinkFrom, afloat);
     }
     const sink = Math.min(1, Math.max(0, afloat - this.sinkFrom) / SINK);
+    if (this.rise < 1) this.rise = Math.min(1, this.rise + (dt * this.speed) / 0.6);
+    const under = 1 - smooth(this.rise);
     if (sink > 0 && !this.sinking) {
       this.sinking = true;
       for (const d of this.dice) if (d.body.visible) this.fx?.ripple(d.body.position.x, d.body.position.z, 0.5, 1.6);
@@ -526,7 +534,7 @@ export class Dice3D {
       _p.lerpVectors(a.x, b.x, k);
       _q.slerpQuaternions(a.q, b.q, k);
       const t = this.t, ph = die.phase;
-      _p.y += calm * 0.05 * Math.sin(t * 2.2 + ph) - sink * sink * 1.7;
+      _p.y += calm * 0.05 * Math.sin(t * 2.2 + ph) - sink * sink * 1.7 - under * under * 1.7;
       _e.set(calm * 0.07 * Math.sin(t * 1.6 + ph) + sink * 0.45, 0, calm * 0.06 * Math.sin(t * 1.25 + ph * 1.7));
       _q.premultiply(_qr.setFromEuler(_e));
       die.body.position.copy(this.toWorld(_p));

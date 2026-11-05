@@ -1,7 +1,8 @@
 // Orbit camera with damping, keyboard controls, focus moves and an intro flight.
 // Left-drag (or one finger) grabs the map and pans it, with the ground under the pointer
 // staying under it; the view can be pushed a little past the island's edge and springs back.
-// Right-drag (or shift/ctrl-drag) orbits and tilts; the wheel zooms towards the pointer. Two
+// Right-drag (or shift/ctrl-drag) orbits and tilts; the wheel zooms towards the pointer (which
+// button does which, and the keys, are the player's to choose: game/bindings.ts). Two
 // fingers, as in map apps: moved together, up and down tilts and sideways turns; spread or
 // twisted, they zoom towards their midpoint and turn (and the midpoint drags the map). Which of
 // the two is decided once the fingers have moved a little, and kept until they lift. A short
@@ -11,6 +12,7 @@
 import * as THREE from 'three/webgpu';
 import { clamp, lerp } from '../util/noise';
 import { ease } from '../util/tween';
+import { DEFAULT_MOUSE, dragJob, keysOf, type BindAction, type KeyBinds, type MouseBinds } from '../../game/bindings';
 
 export interface CameraPose {
   target: THREE.Vector3;
@@ -267,7 +269,7 @@ export class CameraRig {
     on(window, 'keydown', (e) => {
       if (isTyping(e) || !this.keysEnabled()) return;
       this.keys.add(e.code);
-      if (e.code === 'KeyH' && !e.repeat && !this.locked) this.reset();
+      if (!e.repeat && !this.locked && keysOf('home', this.binds().keys).includes(e.code)) this.reset();
     });
     on(window, 'keyup', (e) => this.keys.delete(e.code));
     // Losing the window loses the lifts too: forget held keys and fingers.
@@ -301,9 +303,12 @@ export class CameraRig {
       this.dragMode = null;
       return;
     }
+    // (The middle button's own default, the page's autoscroll, would take over the drag.)
+    if (e.button === 1) e.preventDefault();
+    const job = dragJob(e.button, this.binds().mouse);
     if (e.button === 2 && this.editing) this.dragMode = 'pan';
-    else if (e.button === 2 || (e.button === 0 && (e.shiftKey || e.ctrlKey || e.altKey))) this.dragMode = 'orbit';
-    else if (e.button === 0 || e.button === 1) this.dragMode = 'pan';
+    else if (job === 'turn' || (e.button === 0 && (e.shiftKey || e.ctrlKey || e.altKey))) this.dragMode = 'orbit';
+    else if (job === 'pan') this.dragMode = 'pan';
   }
 
   private onMove(e: PointerEvent) {
@@ -580,6 +585,8 @@ export class CameraRig {
 
   /** Set by the board input while a game is on (false while a dialog is open); off otherwise. */
   keysEnabled: () => boolean = () => false;
+  /** The player's keys and mouse buttons (the usual ones until the game says otherwise). */
+  binds: () => { keys: KeyBinds; mouse: MouseBinds } = () => ({ keys: {}, mouse: DEFAULT_MOUSE });
   /**
    * Whether motion is to be kept down (Settings, or the system's preference): set by the app, which
    * owns the setting (render code doesn't read it). Glances then don't fly the camera.
@@ -652,19 +659,21 @@ export class CameraRig {
     }
     if (!this.flight && this.keysEnabled() && !this.locked) {
       const k = this.keys;
+      const binds = this.binds().keys;
+      const held = (a: BindAction) => k.size > 0 && keysOf(a, binds).some((c) => k.has(c));
       const pan = dt * 0.9;
       // While placing a piece the arrow keys pick spots on the board; WASD still pans.
       const arrows = !this.arrowsCaptured();
-      if (k.has('KeyW') || (arrows && k.has('ArrowUp'))) this.panBy(0, -pan);
-      if (k.has('KeyS') || (arrows && k.has('ArrowDown'))) this.panBy(0, pan);
-      if (k.has('KeyA') || (arrows && k.has('ArrowLeft'))) this.panBy(-pan, 0);
-      if (k.has('KeyD') || (arrows && k.has('ArrowRight'))) this.panBy(pan, 0);
-      if (k.has('KeyQ')) this.goal.yaw += dt * 1.2;
-      if (k.has('KeyE')) this.goal.yaw -= dt * 1.2;
-      if (k.has('KeyR')) this.goal.pitch = clamp(this.goal.pitch + dt, this.limits.minPitch, this.limits.maxPitch);
-      if (k.has('KeyF')) this.goal.pitch = clamp(this.goal.pitch - dt, this.limits.minPitch, this.limits.maxPitch);
-      if (k.has('Equal') || k.has('NumpadAdd')) this.zoomBy(1 - dt);
-      if (k.has('Minus') || k.has('NumpadSubtract')) this.zoomBy(1 + dt);
+      if (held('panUp') || (arrows && k.has('ArrowUp'))) this.panBy(0, -pan);
+      if (held('panDown') || (arrows && k.has('ArrowDown'))) this.panBy(0, pan);
+      if (held('panLeft') || (arrows && k.has('ArrowLeft'))) this.panBy(-pan, 0);
+      if (held('panRight') || (arrows && k.has('ArrowRight'))) this.panBy(pan, 0);
+      if (held('turnLeft')) this.goal.yaw += dt * 1.2;
+      if (held('turnRight')) this.goal.yaw -= dt * 1.2;
+      if (held('tiltUp')) this.goal.pitch = clamp(this.goal.pitch + dt, this.limits.minPitch, this.limits.maxPitch);
+      if (held('tiltDown')) this.goal.pitch = clamp(this.goal.pitch - dt, this.limits.minPitch, this.limits.maxPitch);
+      if (held('zoomIn')) this.zoomBy(1 - dt);
+      if (held('zoomOut')) this.zoomBy(1 + dt);
     }
     // Critically-damped follow.
     const s = this.flight ? 1 : 1 - Math.exp(-dt * 9);

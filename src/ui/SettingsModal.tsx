@@ -1,4 +1,4 @@
-// Settings, in four tabs. Loaded on demand (see Modals.tsx).
+// Settings, in five tabs. Loaded on demand (see Modals.tsx).
 
 import { useState, type ReactNode } from 'react';
 import { DEFAULT_SETTINGS, useUI, type Settings } from '../game/store';
@@ -7,13 +7,14 @@ import { CARD_NAMES } from '../game/names';
 import { session } from '../app/session';
 import { LineIcon, type LineIconName } from './LineIcons';
 import { Morph } from './Morph';
+import { ControlsSettings } from './ControlsSettings';
 import { Modal, TabPanel, Tabs, closeBack } from './ModalFrame';
 import { applyVolume, setMuted } from '../audio/mute';
 import { applyDisplaySettings, effectiveScale, reducedMotion } from '../app/display';
 import { deviceQuality, rememberedQuality } from '../app/deviceQuality';
 import type { Quality } from '../render/core/stage';
 
-type SettingsTab = 'look' | 'play' | 'sound' | 'access';
+type SettingsTab = 'look' | 'play' | 'controls' | 'sound' | 'access';
 
 /** The settings tab last open (kept while the page is). */
 let lastSettingsTab: SettingsTab = 'look';
@@ -167,6 +168,7 @@ export function SettingsModal() {
         items={[
           { id: 'look', label: 'Look', icon: 'look' },
           { id: 'play', label: 'Play', icon: 'play' },
+          { id: 'controls', label: 'Controls', icon: 'keyboard' },
           { id: 'sound', label: 'Sound', icon: 'sound' },
           { id: 'access', label: 'Access', icon: 'access' },
         ]}
@@ -249,6 +251,9 @@ export function SettingsModal() {
             <div className="toggle-list">
               {toggle('odds', 'Show odds', 'What tiles and building spots yield, as you point or press', settings.showProbabilities, (showProbabilities) => upd({ showProbabilities }))}
               {toggle('turn', 'Confirm ending a turn', 'End turn asks for a second press', settings.confirmEndTurn, (confirmEndTurn) => upd({ confirmEndTurn }))}
+              {toggle('chat', 'Mute table talk', 'The others’ lines stay in the table talk panel, without bubbles or a badge', settings.chatMuted, (chatMuted) => upd({ chatMuted }))}
+              {toggle('odds', 'Show the supply’s counts', 'How many of each resource are left in the supply', settings.supplyCounts, (supplyCounts) => upd({ supplyCounts }))}
+              {toggle('check', 'Confirm placements', 'A click shows the piece first: click again, or press the button, to place it (touch always asks)', settings.confirmPlace, (confirmPlace) => upd({ confirmPlace }))}
               {toggle('hand', 'Pass wagon auctions that can’t reach you', 'With Wagon Trains: when nowhere the wagon could go touches your pieces, you pass without being asked', settings.autoPassWagon, (autoPassWagon) => upd({ autoPassWagon }))}
             </div>
             {field(
@@ -259,6 +264,7 @@ export function SettingsModal() {
             )}
           </>
         )}
+        {tab === 'controls' && <ControlsSettings settings={settings} upd={upd} />}
         {tab === 'sound' && (
           <>
             {/* (Named by what it says, which says what pressing does: a fixed name, "Mute all

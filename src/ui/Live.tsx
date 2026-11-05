@@ -42,7 +42,8 @@ function useChatNews() {
   // (Watching online, the seat drawn isn't yours: everything said there is news.)
   const mine = useUI((s) => !!last && last.player === s.me && !s.online?.watch);
   const name = useUI((s) => (last && s.view ? (last.name ?? s.view.players[last.player]?.name) : ''));
-  return last && !mine ? `${name} says: ${last.text}` : '';
+  const muted = useUI((s) => s.settings.chatMuted);
+  return last && !mine && !muted ? `${name} says: ${last.text}` : '';
 }
 
 /** An offer made to you, once as it arrives (the toast that shows it may be behind a dialog). */

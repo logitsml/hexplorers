@@ -18,6 +18,8 @@ import { throwFaces, VALUE_EVENT, type EventDieResult } from '../render/fx/event
 import { PIPS, TERRAIN_RESOURCE, isLand, longestRoadEdges, numbersOf, type Board, type GameState, type Hex, type RouteKind, type Terrain } from '../engine';
 import { landHexes } from '../render/board/looks';
 import { interactionSpots, speedOf, useUI, type UIStore } from '../game/store';
+import { quickSpots } from '../game/commands';
+import { dragJob } from '../game/bindings';
 import { session } from '../app/session';
 import { toggleView, fitFlat, flatNow, flatView, flatZoomable, previewFlat, settleFlat } from '../app/viewMode';
 import { panBy, zoomAbout, type FlatCam } from '../app/flatZoom';
@@ -162,6 +164,7 @@ function useMapGestures(root: React.RefObject<HTMLDivElement | null>, on: boolea
       fingers.set(e.pointerId, [e.clientX, e.clientY]);
       if (!dragging) {
         if (fingers.size < 2 && tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < DRAG) return;
+        if (fingers.size < 2 && !tap && Math.hypot(e.clientX - from[0], e.clientY - from[1]) < DRAG) return;
         dragging = true;
         tap = null;
         // (A tile's details, shown for the press, give way to the drag.)
@@ -205,7 +208,12 @@ function useMapGestures(root: React.RefObject<HTMLDivElement | null>, on: boolea
     const cancel = (e: PointerEvent) => end(e, true);
 
     const down = (e: PointerEvent) => {
-      if (!flatZoomable() || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      // A mouse drags the map with whichever buttons move the map on the island too (Settings,
+      // Controls: by default the left and the middle; turning the view has no meaning here).
+      if (e.pointerType === 'mouse' && e.button !== 0 && dragJob(e.button, useUI.getState().settings.mouse) !== 'pan') return;
+      // (The middle button's own default, the page's autoscroll, would take over the drag.)
+      if (e.button === 1) e.preventDefault();
+      if (!flatZoomable()) return;
       if (fingers.size === 0) {
         // (A glide still on its way is finished at once, and this press works from where it ends.
         // Not for a pinch's second finger: the gesture goes on from where the map is shown.)
@@ -214,7 +222,8 @@ function useMapGestures(root: React.RefObject<HTMLDivElement | null>, on: boolea
         window.addEventListener('pointerup', lift);
         window.addEventListener('pointercancel', cancel);
         dragging = false;
-        tap = { x: e.clientX, y: e.clientY, target: e.target };
+        // (Only the main button's press is a tap: another one let go where it was does nothing.)
+        tap = e.button === 0 ? { x: e.clientX, y: e.clientY, target: e.target } : null;
       } else {
         // A second finger: a pinch, which is a gesture from the start.
         tap = null;
@@ -225,6 +234,26 @@ function useMapGestures(root: React.RefObject<HTMLDivElement | null>, on: boolea
       rebase();
     };
 
+    // A mouse wheel's notches (100 px or more a step, as on Windows) are eased in over a few
+    // frames rather than jumped by, each new one adding to what's still to come; a trackpad's
+    // fine steps follow at once. The map is redrawn once the wheel has rested a while.
+    let owed = 0;
+    let at: Pt = [0, 0];
+    let ease = 0;
+    const settleSoon = () => {
+      clearTimeout(idle);
+      idle = setTimeout(settleFlat, 220);
+    };
+    const step = () => {
+      ease = 0;
+      const v = flatView();
+      if (!v || fingers.size > 0) return void (owed = 0);
+      const part = Math.abs(owed) < 0.004 ? owed : owed * 0.35;
+      owed -= part;
+      previewFlat(zoomAbout(flatNow(), Math.exp(part), at[0], at[1], v.centre, v.k0));
+      if (owed !== 0) ease = requestAnimationFrame(step);
+      settleSoon();
+    };
     const wheel = (e: WheelEvent) => {
       const v = flatView();
       if (!v) return;
@@ -232,10 +261,17 @@ function useMapGestures(root: React.RefObject<HTMLDivElement | null>, on: boolea
       if (fingers.size > 0) return;
       const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
       // (A trackpad's pinch arrives as a wheel with Ctrl held, in much smaller steps than a wheel's notch.)
-      const factor = Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.002));
-      previewFlat(zoomAbout(flatNow(), factor, e.clientX, e.clientY, v.centre, v.k0));
-      clearTimeout(idle);
-      idle = setTimeout(settleFlat, 140);
+      const log = -dy * (e.ctrlKey ? 0.01 : 0.002);
+      at = [e.clientX, e.clientY];
+      const notch = e.deltaMode !== 0 || (!e.ctrlKey && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
+      if (!notch && owed === 0) {
+        previewFlat(zoomAbout(flatNow(), Math.exp(log), at[0], at[1], v.centre, v.k0));
+        settleSoon();
+        return;
+      }
+      // (At most a step and a half of zoom waiting, so a fast spin doesn't run on after it stops.)
+      owed = Math.max(-0.6, Math.min(0.6, owed + log));
+      if (!ease) ease = requestAnimationFrame(step);
     };
     // The click that ends a drag (or a double tap) is not a press on whatever it ended over.
     const click = (e: MouseEvent) => {
@@ -244,10 +280,14 @@ function useMapGestures(root: React.RefObject<HTMLDivElement | null>, on: boolea
       e.preventDefault();
     };
 
+    // (With the right button dragging the map, its menu would open at the end of every drag.)
+    const menu = (e: MouseEvent) => dragJob(2, useUI.getState().settings.mouse) === 'pan' && e.preventDefault();
+    el.addEventListener('contextmenu', menu);
     el.addEventListener('pointerdown', down);
     el.addEventListener('wheel', wheel, { passive: false });
     el.addEventListener('click', click, true);
     return () => {
+      el.removeEventListener('contextmenu', menu);
       el.removeEventListener('pointerdown', down);
       el.removeEventListener('wheel', wheel);
       el.removeEventListener('click', click, true);
@@ -256,6 +296,7 @@ function useMapGestures(root: React.RefObject<HTMLDivElement | null>, on: boolea
       window.removeEventListener('pointercancel', cancel);
       clearTimeout(swallowTimer);
       clearTimeout(idle);
+      cancelAnimationFrame(ease);
       fingers.clear();
     };
   }, [root, on]);
@@ -1034,6 +1075,49 @@ function WallBase({ x, y, s }: { x: number; y: number; s: number }) {
 
 // ------------------------------------------------------------------- spots
 
+/**
+ * On your turn with nothing being placed: unmarked targets over every spot a road, house or town
+ * could go (game/commands.ts quickSpots), so a press there builds that piece; pointed at, its ghost.
+ */
+function QuickSpots({ board, layout, pointer }: { board: Board; layout: Layout; pointer: React.MutableRefObject<string> }) {
+  const focus = useUI((s) => s.boardFocus);
+  const me = useUI((s) => s.me);
+  const myColor = useUI((s) => s.view?.players[s.me]?.color ?? 'red');
+  const q = quickSpots();
+  if (!q) return null;
+  const P = proj(layout);
+  const { k } = layout;
+  const events = (kind: 'vertex' | 'edge', id: number) => ({
+    onPointerDown: (e: React.PointerEvent) => (pointer.current = e.pointerType),
+    onPointerEnter: (e: React.PointerEvent) => e.pointerType === 'mouse' && session.input?.hoverSpot(kind, id, e.clientX, e.clientY),
+    onPointerLeave: (e: React.PointerEvent) => e.pointerType === 'mouse' && session.input?.hoverSpot(null, -1, 0, 0),
+    onClick: () => session.input?.pressSpot(kind, id, pointer.current),
+  });
+  const ends = (id: number) => {
+    const ed = board.edges[id];
+    return [P(board.vertices[ed.a].x, board.vertices[ed.a].z), P(board.vertices[ed.b].x, board.vertices[ed.b].z)] as const;
+  };
+  const corners = [...q.houses, ...q.towns];
+  return (
+    <g className="flat-spots quick">
+      {/* (The edges first: a corner's target sits over the ends of the edges that meet there.) */}
+      {q.roads.map((id) => {
+        const [a, b] = ends(id);
+        return <line key={`e${id}`} className="flat-hit" x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} {...events('edge', id)} />;
+      })}
+      {corners.map((id) => {
+        const [x, y] = P(board.vertices[id].x, board.vertices[id].z);
+        return <circle key={`v${id}`} className="flat-hit" cx={x} cy={y} r={Math.max(18, k * 0.28)} {...events('vertex', id)} />;
+      })}
+      {focus?.kind === 'vertex' && corners.includes(focus.id) && (() => {
+        const [x, y] = P(board.vertices[focus.id].x, board.vertices[focus.id].z);
+        return <Building kind={q.towns.includes(focus.id) ? 'city' : 'settlement'} seat={me} color={myColor} x={x} y={y} k={k} ghost />;
+      })()}
+      {focus?.kind === 'edge' && q.roads.includes(focus.id) && <Road a={ends(focus.id)[0]} b={ends(focus.id)[1]} color={myColor} k={k} ghost />}
+    </g>
+  );
+}
+
 /** While placing: the legal spots (pulsing), the one being previewed as a ghost, and their targets. */
 function Spots({ board, layout }: { board: Board; layout: Layout }) {
   const it = useUI((s) => s.interaction);
@@ -1043,8 +1127,11 @@ function Spots({ board, layout }: { board: Board; layout: Layout }) {
   const P = proj(layout);
   const { k } = layout;
   const pointer = useRef('mouse');
+  // (Redrawn as the state changes: what can be built without choosing the piece first goes with it.)
+  useUI((s) => s.view);
+  useUI((s) => s.busy);
   const sp = interactionSpots(it);
-  if (!sp || sp.ids.length === 0) return null;
+  if (!sp || sp.ids.length === 0) return <QuickSpots board={board} layout={layout} pointer={pointer} />;
   const { kind, ids } = sp;
   const events = (id: number) => ({
     onPointerDown: (e: React.PointerEvent) => (pointer.current = e.pointerType),

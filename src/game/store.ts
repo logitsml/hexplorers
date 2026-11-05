@@ -2,6 +2,7 @@
 // lags the authoritative host while animations play, so counters update exactly
 // when flying cards land.
 
+import { DEFAULT_MOUSE, sanitizeKeys, sanitizeMouse, type KeyBinds, type MouseBinds } from './bindings';
 import { create } from 'zustand';
 import type { Action, Card, DevCardType, GameState, PlayerId, CardCounts, Resource } from '../engine';
 import { emptyCards } from '../engine/constants';
@@ -126,6 +127,8 @@ export interface Settings {
   timeOfDay: 'dynamic' | 'daytime' | 'morning' | 'noon' | 'golden' | 'dusk' | 'night';
   showProbabilities: boolean;
   confirmEndTurn: boolean;
+  /** A click on a spot shows the piece first, and a second click (or the button) places it; touch always does. */
+  confirmPlace: boolean;
   motionBlur: boolean;
   /** Interface size multiplier for legibility. */
   uiScale: number;
@@ -151,6 +154,13 @@ export interface Settings {
   autoPassWagon: boolean;
   /** A bounty field's or the Learning ability's pick taken in this resource without asking, when the supply has it; null asks. */
   pickResource: Resource | null;
+  /** The others' table talk kept to the panel: no bubbles, badge or read-out (it's still there to read). */
+  chatMuted: boolean;
+  /** The supply's resource counts shown (off: only what's in it, not how many). */
+  supplyCounts: boolean;
+  /** Keys chosen in place of the usual ones (game/bindings.ts), and what each mouse button's drag does. */
+  keys: KeyBinds;
+  mouse: MouseBinds;
   /** The interface's material: Sea Glass (clear glass that follows the sky) or the parchment of the first releases. */
   look: 'glass' | 'parchment';
 }
@@ -295,6 +305,7 @@ const defaultSettings: Settings = {
   timeOfDay: 'daytime',
   showProbabilities: true,
   confirmEndTurn: false,
+  confirmPlace: true,
   motionBlur: true,
   uiScale: 1,
   reduceMotion: 'system',
@@ -308,6 +319,10 @@ const defaultSettings: Settings = {
   highContrast: 'system',
   autoPassWagon: false,
   pickResource: null,
+  chatMuted: false,
+  supplyCounts: true,
+  keys: {},
+  mouse: { ...DEFAULT_MOUSE },
   look: 'glass',
 };
 
@@ -335,6 +350,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     timeOfDay: oneOf(r.timeOfDay, ['dynamic', 'daytime', 'morning', 'noon', 'golden', 'dusk', 'night'] as const, d.timeOfDay),
     showProbabilities: bool(r.showProbabilities, d.showProbabilities),
     confirmEndTurn: bool(r.confirmEndTurn, d.confirmEndTurn),
+    confirmPlace: bool(r.confirmPlace, d.confirmPlace),
     motionBlur: bool(r.motionBlur, d.motionBlur),
     uiScale: num(r.uiScale, 0.85, 1.3, d.uiScale),
     reduceMotion: oneOf(r.reduceMotion, ['system', 'on', 'off'] as const, d.reduceMotion),
@@ -349,6 +365,10 @@ export function sanitizeSettings(raw: unknown): Settings {
     highContrast: oneOf(r.highContrast, ['system', 'on', 'off'] as const, d.highContrast),
     autoPassWagon: bool(r.autoPassWagon, d.autoPassWagon),
     pickResource: oneOf(r.pickResource, [null, ...RESOURCES] as const, d.pickResource),
+    chatMuted: bool(r.chatMuted, d.chatMuted),
+    supplyCounts: bool(r.supplyCounts, d.supplyCounts),
+    keys: sanitizeKeys(r.keys),
+    mouse: sanitizeMouse(r.mouse),
     look: oneOf(r.look, ['glass', 'parchment'] as const, d.look),
   };
 }
@@ -425,7 +445,8 @@ export const useUI = create<UIStore>((set, get) => ({
     set(p);
   },
   pushLog: (l) => set({ log: [...get().log.slice(-199), { ...l, id: seq++ }] }),
-  pushChat: (l) => set({ chat: [...get().chat.slice(-99), { ...l, id: seq++ }], chatUnread: get().chatOpen ? 0 : get().chatUnread + 1 }),
+  // (Muted, the others' lines go into the panel without counting as news.)
+  pushChat: (l) => set({ chat: [...get().chat.slice(-99), { ...l, id: seq++ }], chatUnread: get().chatOpen || (get().settings.chatMuted && l.player !== get().me) ? 0 : get().chatUnread + 1 }),
   pushBanner: (b, ms = 2600) => {
     const id = seq++;
     set({ banners: [...get().banners, { ...b, id }] });

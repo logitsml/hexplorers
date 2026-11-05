@@ -4,6 +4,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { COSTS, type Card } from '../engine';
 import { useUI } from '../game/store';
+import { keyLabel, keysOf, type BindAction, type DragJob } from '../game/bindings';
 import { Icon } from './Cards';
 import { Gesture } from './Compact';
 import { LineIcon } from './LineIcons';
@@ -60,6 +61,8 @@ function Instead({ to, children, open }: { to?: RulesPage; children: ReactNode; 
 export function RulesModal() {
   const view = useUI((s) => s.view);
   const inGame = useUI((s) => s.screen === 'game');
+  const binds = useUI((s) => s.settings.keys);
+  const mouse = useUI((s) => s.settings.mouse);
   // (The pages read the game as it was when opened: what's in play doesn't change mid-game.)
   const ctx = useMemo(() => rulesCtx(view, inGame), [view?.options, inGame]);
   // (Where it was left, as Settings keeps its tab: the tab, and the Expansions tab's page.)
@@ -91,25 +94,32 @@ export function RulesModal() {
       <dt><LineIcon name="hand" size={30} /> Tap a glowing spot</dt><dd>Preview the piece there; tap it again (or Build here) to place it</dd>
     </dl>
   );
+  // (The keys and buttons as the player has them: game/bindings.ts, Settings, Controls.)
+  const K = ({ a }: { a: BindAction }) => <kbd>{keyLabel(keysOf(a, binds)[0] ?? '')}</kbd>;
+  const drags = (job: DragJob) => (['left', 'middle', 'right'] as const).filter((b) => mouse[b] === job);
+  const dragName = (bs: readonly string[]) => (bs.length ? bs.map((b, i) => (i ? b : b[0].toUpperCase() + b.slice(1))).join(' or ') + '-drag' : null);
+  const panDrag = dragName(drags('pan'));
+  const turnDrag = dragName(drags('turn'));
   const pointerControls = (
     <>
       <dl className="controls-list">
-        <dt><LineIcon name="mouse" size={30} /> Drag</dt><dd>Move the map</dd>
-        <dt><LineIcon name="mouse" size={30} /> Right-drag</dt><dd>Turn and tilt the island</dd>
+        {panDrag && <><dt><LineIcon name="mouse" size={30} /> {panDrag}</dt><dd>Move the map</dd></>}
+        {turnDrag && <><dt><LineIcon name="mouse" size={30} /> {turnDrag}</dt><dd>Turn and tilt the island</dd></>}
         <dt><LineIcon name="mouse" size={30} /> Scroll</dt><dd>Zoom towards the pointer</dd>
       </dl>
       <dl className="keys-list">
-        <dt><kbd>Space</kbd></dt><dd>Roll the dice</dd>
-        <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></dt><dd>Build a road, house or town; buy a development card</dd>
+        <dt><K a="roll" /></dt><dd>Roll the dice</dd>
+        <dt><K a="road" /> <K a="house" /> <K a="town" /> <K a="card" /></dt><dd>Build a road, house or town; buy a development card</dd>
         <dt><kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd> <kbd>Enter</kbd></dt><dd>Choose a spot while placing, then place</dd>
-        <dt><kbd>T</kbd> <kbd>B</kbd></dt><dd>Offer a trade · trade with the supply</dd>
-        <dt><kbd>Enter</kbd></dt><dd>End your turn</dd>
+        <dt><K a="trade" /> <K a="supply" /></dt><dd>Offer a trade · trade with the supply</dd>
+        <dt><K a="endTurn" /></dt><dd>End your turn</dd>
         <dt><kbd>Esc</kbd></dt><dd>Cancel placing · close a dialog</dd>
         <dt><kbd>Ctrl</kbd> <kbd>Z</kbd></dt><dd>Take back your last move</dd>
-        <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <kbd>Q</kbd><kbd>E</kbd> <kbd>R</kbd><kbd>F</kbd></dt><dd>Move, turn and tilt the view</dd>
-        <dt><kbd>V</kbd></dt><dd>Switch between the 3D island and the flat 2D map</dd>
-        <dt><kbd>H</kbd> <kbd>M</kbd> <kbd>?</kbd></dt><dd>Reset the view · mute · these rules</dd>
+        <dt><K a="panUp" /><K a="panLeft" /><K a="panDown" /><K a="panRight" /> <K a="turnLeft" /><K a="turnRight" /> <K a="tiltUp" /><K a="tiltDown" /></dt><dd>Move, turn and tilt the view</dd>
+        <dt><K a="flat" /></dt><dd>Switch between the 3D island and the flat 2D map</dd>
+        <dt><K a="home" /> <K a="mute" /> <kbd>?</kbd></dt><dd>Reset the view · mute · these rules</dd>
       </dl>
+      <p className="setting-note">Change any of these in Settings, Controls.</p>
     </>
   );
   return (

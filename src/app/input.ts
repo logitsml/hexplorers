@@ -1,7 +1,9 @@
 // Pointer input on the 3D board: hover previews and clicks for whatever the
 // local player is currently placing. Touch has no hover, so there a first tap previews a spot
-// (with a confirm button, see PlaceConfirm) and a second tap or the button places; pressing
-// and holding a tile shows its details.
+// (with a confirm button, see PlaceConfirm) and a second tap or the button places; a mouse does
+// the same unless "Confirm placements" is off. On your turn with nothing chosen, a press on a
+// spot a road, house or town could go builds that piece there (game/commands.ts quickSpots).
+// Pressing and holding a tile shows its details.
 
 import * as THREE from 'three/webgpu';
 import type { World } from '../render/World';
@@ -11,7 +13,7 @@ import { interactionSpots, useUI } from '../game/store';
 import { spotOf, stagedAsk, stagedStep } from '../game/moduleActions';
 import { segDist } from '../render/board/layout';
 import { sfx } from '../audio/sfx';
-import { cancelPlacement } from '../game/commands';
+import { cancelPlacement, quickBuildAt, quickSpots, toggleBuild } from '../game/commands';
 import { explain, missReason } from '../ui/why';
 import { seenHex } from '../game/hexView';
 import type { GameState } from '../engine';
@@ -29,7 +31,7 @@ export interface HoverInfo {
 const CONFIRM_LABEL: Record<string, string> = {
   setupSettlement: 'Settle here',
   setupRoad: 'Build road here',
-  settlement: 'Build here',
+  settlement: 'Build house here',
   city: 'Build town here',
   road: 'Build road here',
   robber: 'Move robber here',
@@ -129,6 +131,8 @@ export class BoardInput {
       if (st.interaction.kind === lastKind) return;
       lastKind = st.interaction.kind;
       if (this.pending) this.clearPending();
+      // (A placement begun by a press on its spot ends with it.)
+      if (st.interaction.kind !== this.quick) this.quick = null;
       this.syncGlow();
     });
     this.disposers.push(() => {
@@ -212,43 +216,52 @@ export class BoardInput {
     if (!pick) return { kind: null, id: -1, hex: -1 };
     const sp = interactionSpots(useUI.getState().interaction);
     switch (sp?.kind) {
-      case 'vertex': {
-        // Choose the nearest *legal* spot within reach, so near-misses still work.
-        let best = -1, bd = 0.42;
-        for (const v of sp.ids) {
-          const vx = this.view.board.vertices[v];
-          const d = Math.hypot(vx.x - pick.point.x, vx.z - pick.point.z);
-          if (d < bd) {
-            bd = d;
-            best = v;
-          }
-        }
-        return { kind: 'vertex', id: best, hex: pick.hex };
-      }
-      case 'edge': {
-        let best = -1, bd = 0.32;
-        for (const eid of sp.ids) {
-          const ed = this.view.board.edges[eid];
-          const a = this.view.board.vertices[ed.a], b = this.view.board.vertices[ed.b];
-          const d = segDist(pick.point.x, pick.point.z, a.x, a.z, b.x, b.z);
-          if (d < bd) {
-            bd = d;
-            best = eid;
-          }
-        }
-        return { kind: 'edge', id: best, hex: pick.hex };
-      }
+      // Choose the nearest *legal* spot within reach, so near-misses still work.
+      case 'vertex':
+        return { kind: 'vertex', id: this.nearestVertex(sp.ids, pick.point, 0.42).id, hex: pick.hex };
+      case 'edge':
+        return { kind: 'edge', id: this.nearestEdge(sp.ids, pick.point, 0.32).id, hex: pick.hex };
       case 'hex':
         return { kind: 'hex', id: sp.ids.includes(pick.hex) ? pick.hex : -1, hex: pick.hex };
-      default:
+      default: {
+        // Nothing being placed: the nearest spot a road, house or town could be built at, if any.
+        const q = quickSpots();
+        if (!q) return { kind: null, id: -1, hex: pick.hex };
+        const v = this.nearestVertex([...q.houses, ...q.towns], pick.point, 0.42);
+        const e = this.nearestEdge(q.roads, pick.point, 0.32);
+        if (v.id >= 0 && (e.id < 0 || v.d / 0.42 <= e.d / 0.32)) return { kind: 'vertex', id: v.id, hex: pick.hex };
+        if (e.id >= 0) return { kind: 'edge', id: e.id, hex: pick.hex };
         return { kind: null, id: -1, hex: pick.hex };
+      }
     }
+  }
+
+  private nearestVertex(ids: readonly number[], at: { x: number; z: number }, reach: number) {
+    let id = -1, d = reach;
+    for (const v of ids) {
+      const vx = this.view.board.vertices[v];
+      const dv = Math.hypot(vx.x - at.x, vx.z - at.z);
+      if (dv < d) [d, id] = [dv, v];
+    }
+    return { id, d };
+  }
+
+  private nearestEdge(ids: readonly number[], at: { x: number; z: number }, reach: number) {
+    let id = -1, d = reach;
+    for (const eid of ids) {
+      const ed = this.view.board.edges[eid];
+      const a = this.view.board.vertices[ed.a], b = this.view.board.vertices[ed.b];
+      const de = segDist(at.x, at.z, a.x, a.z, b.x, b.z);
+      if (de < d) [d, id] = [de, eid];
+    }
+    return { id, d };
   }
 
   private onMove(e: PointerEvent) {
     if (e.buttons !== 0) return;
     const t = this.target(e);
-    this.focus(t.kind, t.id);
+    // (A spot chosen and waiting for its confirm keeps its ghost while the pointer wanders.)
+    if (!this.pending) this.focus(t.kind, t.id);
     const hoverHex = t.kind === 'hex' ? t.id : t.hex;
     if (hoverHex !== this.hoverHex) {
       const fx = this.world.effects;
@@ -257,7 +270,7 @@ export class BoardInput {
       if (hoverHex >= 0) fx.get(hoverHex).z = t.kind === 'hex' ? 1 : 0.35;
     }
     this.world.canvas.style.cursor = t.id >= 0 ? 'pointer' : '';
-    const vertex = t.kind === 'vertex' && t.id >= 0 ? t.id : undefined;
+    const vertex = t.kind === 'vertex' && t.id >= 0 && !this.pending ? t.id : undefined;
     this.onHoverHex?.(hoverHex >= 0 || vertex !== undefined ? { hex: hoverHex, x: e.clientX, y: e.clientY, vertex } : null);
   }
 
@@ -268,8 +281,15 @@ export class BoardInput {
     }
     // A click while the camera glides somewhere would land on a moving board.
     if (this.world.rig.flying) return;
-    const t = this.target(e);
-    if (this.lastPointer === 'touch' && t.kind) {
+    let t = this.target(e);
+    // A miss while placing a piece begun by a press on its spot puts it away, and the press is
+    // taken as a fresh one (on another kind of spot, say).
+    if (this.quick && t.kind && t.kind !== 'hex' && t.id < 0 && cancelPlacement()) t = this.target(e);
+    if (useUI.getState().interaction.kind === 'idle') {
+      if ((t.kind === 'vertex' || t.kind === 'edge') && t.id >= 0) this.startQuick(t.kind, t.id);
+      return;
+    }
+    if (this.asks() && t.kind) {
       if (t.id < 0) {
         if (!this.pending) this.explainMiss();
         this.clearPending();
@@ -284,6 +304,25 @@ export class BoardInput {
       return;
     }
     this.place(t.id);
+  }
+
+  /** Whether a press only previews its spot (touch always; a mouse unless "Confirm placements" is off). */
+  private asks() {
+    return this.lastPointer === 'touch' || useUI.getState().settings.confirmPlace;
+  }
+
+  /** The placement under way began with a press on its spot, not the build bar (the kind it is). */
+  private quick: string | null = null;
+
+  /** A press on a spot with nothing chosen: the piece that goes there, previewed (or placed). */
+  private startQuick(kind: 'vertex' | 'edge', id: number) {
+    const build = quickBuildAt(kind, id);
+    if (!build) return;
+    toggleBuild(build);
+    if (useUI.getState().interaction.kind !== build) return;
+    this.quick = build;
+    if (this.asks()) this.choose(kind, id);
+    else this.place(id);
   }
 
   private explainMiss() {
@@ -307,6 +346,12 @@ export class BoardInput {
     const it = useUI.getState().interaction;
     const label = it.kind === 'pick' ? (it.source ? 'Choose this piece' : 'Choose here') : CONFIRM_LABEL[it.kind] ?? 'Place here';
     useUI.getState().set({ placeConfirm: { label } });
+  }
+
+  /** The confirm's other button: another spot, or for a piece begun by a press on its spot, none. */
+  dismissPending() {
+    this.clearPending();
+    if (this.quick) cancelPlacement();
   }
 
   clearPending() {
@@ -539,11 +584,12 @@ export class BoardInput {
   private focus(kind: 'vertex' | 'edge' | 'hex' | null, id = -1) {
     const it = useUI.getState().interaction;
     const me = this.presenter.me;
-    if (kind === 'vertex' && id >= 0) this.view.showGhost(it.kind === 'city' ? 'city' : 'settlement', id, me);
+    const town = it.kind === 'city' || (it.kind === 'idle' && kind === 'vertex' && id >= 0 && quickBuildAt('vertex', id) === 'city');
+    if (kind === 'vertex' && id >= 0) this.view.showGhost(town ? 'city' : 'settlement', id, me);
     else if (kind === 'edge' && id >= 0) this.view.showGhost('road', id, me);
     else this.view.showGhost(null);
     // A spot that would claim a harbour makes its badge pulse in your colour.
-    this.view.previewHarbour(kind === 'vertex' && id >= 0 && (it.kind === 'setupSettlement' || it.kind === 'settlement') ? id : null, me);
+    this.view.previewHarbour(kind === 'vertex' && id >= 0 && (it.kind === 'setupSettlement' || it.kind === 'settlement' || (it.kind === 'idle' && !town)) ? id : null, me);
     const next = kind && id >= 0 ? { kind, id } : null;
     const cur = useUI.getState().boardFocus;
     if (cur?.kind !== next?.kind || cur?.id !== next?.id) useUI.getState().set({ boardFocus: next });
@@ -563,10 +609,14 @@ export class BoardInput {
     this.onHoverHex?.({ hex, x, y, vertex: kind === 'vertex' ? id : undefined });
   }
 
-  /** A flat map spot pressed: placed at once with a mouse; on touch, previewed first, as on the island. */
+  /** A flat map spot pressed: previewed first, as on the island (placed at once with a mouse when confirming is off). */
   pressSpot(kind: 'vertex' | 'edge' | 'hex', id: number, pointerType: string) {
     this.lastPointer = pointerType;
-    if (pointerType === 'touch') {
+    if (useUI.getState().interaction.kind === 'idle') {
+      if (kind !== 'hex') this.startQuick(kind, id);
+      return;
+    }
+    if (this.asks()) {
       if (this.pending && this.pending.kind === kind && this.pending.id === id) this.place(id);
       else this.choose(kind, id);
       return;

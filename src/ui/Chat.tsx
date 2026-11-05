@@ -64,6 +64,12 @@ export function ChatPanel() {
   const seats = useSeats();
   const me = useUI((s) => s.me);
   const set = useUI((s) => s.set);
+  const muted = useUI((s) => s.settings.chatMuted);
+  const mute = () => {
+    sfx.play('click');
+    const st = useUI.getState();
+    st.set({ settings: { ...st.settings, chatMuted: !muted } });
+  };
   // Online, the room's own talk takes the foot of the panel (see online/Talk.tsx).
   const online = useUI((s) => s.online);
   const reduce = useReducedMotionConfig();
@@ -118,6 +124,10 @@ export function ChatPanel() {
         >
           <header>
             <h2>Table talk</h2>
+            {/* (Named by what pressing does, as the sound's mute is.) */}
+            <button className={`icon-btn small tip${muted ? ' on' : ''}`} onClick={mute} aria-pressed={muted} aria-label="Mute the others’ table talk" data-tip={muted ? 'Muted: their lines stay here, without bubbles' : 'Mute the others’ table talk'}>
+              <LineIcon name={muted ? 'muted' : 'sound'} size={18} />
+            </button>
             <button className="icon-btn small" onClick={close} aria-label="Close table talk">
               <CloseIcon />
             </button>
@@ -219,6 +229,8 @@ function OfferButton({ line }: { line: ChatLine }) {
 /** What a player just said, for a few seconds beside their panel. */
 export function SpeechBubble({ player }: { player: number }) {
   const line = useUI((s) => {
+    // (Table talk muted: the others' lines stay in the panel.)
+    if (s.settings.chatMuted && player !== s.me) return null;
     for (let i = s.chat.length - 1; i >= 0; i--) if (s.chat[i].player === player) return s.chat[i];
     return null;
   });

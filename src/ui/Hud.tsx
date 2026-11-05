@@ -1,4 +1,5 @@
 import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { keyLabel, keysOf, type BindAction } from '../game/bindings';
 import { AnimatePresence, motion, useReducedMotionConfig } from 'motion/react';
 import { EXIT, SPRING_UI } from './motion';
 import { useShallow } from 'zustand/react/shallow';
@@ -31,7 +32,7 @@ import { DevCard, Icon, ResourceCard } from './Cards';
 import { Morph } from './Morph';
 import { total, useBank, useChanged, useHand, useSeats } from './hooks';
 import { sfx } from '../audio/sfx';
-import { availability, buyDevCard, cancelPlacement, cardForSale, endTurn, openModal, rollDice, toggleBuild, toggleExtraBuild, undoLast } from '../game/commands';
+import { availability, buyDevCard, cancelPlacement, cardForSale, endTurn, openModal, rollDice, toggleBuild, toggleExtraBuild, tradeFromHand, undoLast } from '../game/commands';
 import { EXTRA_HOTKEYS, extraBuilds, type ExtraBuild } from '../game/builds';
 import { setMuted } from '../audio/mute';
 import { ChatButton, SpeechBubble } from './Chat';
@@ -297,14 +298,15 @@ export function YieldPips({ per }: { per: number }) {
 }
 
 /** One of the supply's stacks: the card's icon, how many are left, and under it what your buildings draw on an average roll. */
-const BankStack = memo(function BankStack({ kind, left, income, earning }: { kind: Card; left: number; income: (CardCounts & { picks: number }) | null; earning: number }) {
+const BankStack = memo(function BankStack({ kind, left, income, earning, counted }: { kind: Card; left: number; income: (CardCounts & { picks: number }) | null; earning: number; counted: boolean }) {
   const per = earning > 0 ? income![kind] : 0;
   const ways = Math.round(per * 36);
-  const tip = `${CARD_NAMES[kind]}: ${left} in supply${ways > 0 ? `; your buildings draw it ${ways} ways in 36 (about ${perRoll(per)} a roll)` : ''}`;
+  // (With the counts hidden, Settings, Play, the stack says only what it is.)
+  const tip = `${CARD_NAMES[kind]}${counted ? `: ${left} in supply` : ''}${ways > 0 ? `; your buildings draw it ${ways} ways in 36 (about ${perRoll(per)} a roll)` : ''}`;
   return (
-    <div className="bank-stack tip" data-tip={tip} data-anchor={`bank-${kind}`} data-kind={kind}>
+    <div className={`bank-stack tip${counted ? '' : ' uncounted'}`} data-tip={tip} data-anchor={`bank-${kind}`} data-kind={kind}>
       <img src={asset(CARD_ICON[kind])} alt={tip} draggable={false} />
-      <Morph>{left}</Morph>
+      {counted && <Morph>{left}</Morph>}
       <YieldPips per={per} />
     </div>
   );
@@ -318,6 +320,7 @@ export function TopRight() {
   const income = useIncome();
   const extras = useSupplyExtras();
   const set = useUI((s) => s.set);
+  const counted = useUI((s) => s.settings.supplyCounts);
   if (!has) return null;
   const { all: earning, text: earned } = incomeLine(income);
   return (
@@ -345,7 +348,7 @@ export function TopRight() {
       <div className={`bank parchment${earning > 0 ? ' with-income' : ''}${extras.length > 0 ? ' with-extras' : ''}`} data-anchor="bank" style={{ ['--cols' as string]: RESOURCES.length + (devs ? 1 : 0) }}>
         <div className="section-label">Supply</div>
         {RESOURCES.map((r) => (
-          <BankStack key={r} kind={r} left={bank[r]} income={income} earning={earning} />
+          <BankStack key={r} kind={r} left={bank[r]} income={income} earning={earning} counted={counted} />
         ))}
         {devs && (
           <div className="bank-stack devdeck tip" data-tip="Development cards left" data-anchor="devdeck">
@@ -356,7 +359,7 @@ export function TopRight() {
         {extras.length > 0 && (
           <div className="bank-extra" role="group" aria-label="Commodities and oil in the supply">
             {extras.map((k) => (
-              <BankStack key={k} kind={k} left={bank[k]} income={income} earning={earning} />
+              <BankStack key={k} kind={k} left={bank[k]} income={income} earning={earning} counted={counted} />
             ))}
           </div>
         )}
@@ -792,6 +795,8 @@ export function HandArea() {
   const p = view.players[me];
   const tokens = tokensOf(view, me, true);
   const groups = devGroups(view, me, busy);
+  // On your turn a card in hand opens a trade with it put up (oil can't be traded).
+  const trading = !!availability()?.main;
   // Slots only move when a stack appears or empties.
   const slotKey = groups.map((g) => g.type).join();
   return (
@@ -803,7 +808,7 @@ export function HandArea() {
         </div>
         {/* Every kind in play: commodities and oil sit after the resources (an empty one is a slim slot). */}
         {cardKinds(view).map((r) => (
-          <HandStack key={r} r={r} n={hand[r]} />
+          <HandStack key={r} r={r} n={hand[r]} trade={trading && r !== 'oil' && hand[r] > 0} />
         ))}
         {/* Then the expansions' tokens, spent like cards (game/holdings.ts), past a divider. */}
         {tokens.length > 0 && <span className="hand-divider" aria-hidden />}
@@ -855,12 +860,22 @@ export function HandArea() {
 }
 
 /** (Memoised, as is a supply stack: a new state redraws only the stacks whose count changed.) */
-const HandStack = memo(function HandStack({ r, n }: { r: Card; n: number }) {
+const HandStack = memo(function HandStack({ r, n, trade }: { r: Card; n: number; trade: boolean }) {
   const nChanged = useChanged(n);
   const layers = Math.min(n, 5);
   const place = (i: number) => ({ x: i * 3, y: -i * 3, rotate: (i - (layers - 1) / 2) * 1.6 });
+  // (On your turn, a press opens a trade with one of these put up.)
+  const press = trade
+    ? {
+        role: 'button',
+        tabIndex: 0,
+        'aria-label': `${CARD_NAMES[r]}: ${n}. Trade it`,
+        onClick: () => tradeFromHand(r),
+        onKeyDown: (e: React.KeyboardEvent) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), tradeFromHand(r)),
+      }
+    : { role: 'img', 'aria-label': `${CARD_NAMES[r]}: ${n}` };
   return (
-    <div className={`stack tip ${n === 0 ? 'empty' : ''}`} data-anchor={`hand-${r}`} data-tip={CARD_NAMES[r]} role="img" aria-label={`${CARD_NAMES[r]}: ${n}`} style={{ ['--tint' as string]: CARD_TINT[r] }}>
+    <div className={`stack tip ${n === 0 ? 'empty' : ''}${trade ? ' tradeable' : ''}`} data-anchor={`hand-${r}`} data-tip={trade ? `${CARD_NAMES[r]} · click to trade` : CARD_NAMES[r]} {...press} style={{ ['--tint' as string]: CARD_TINT[r] }}>
       {/* None held: a slim slot with the resource's icon, so the empty hand stays small. A card
           arriving settles onto the stack (fading in under the one flying in); a card leaving
           lifts off it and fades (as its flight sets off from here). */}
@@ -1024,6 +1039,7 @@ function Actions() {
   const interaction = useUI((s) => s.interaction);
   const confirmEnd = useUI((s) => s.endArmed);
   const glass = useUI((s) => s.settings.look === 'glass');
+  const binds = useUI((s) => s.settings.keys);
   // Recompute when the view or busy state changes.
   const info = useMemo(() => availability(), [view, me, busy]);
   const why = useReasons();
@@ -1038,19 +1054,21 @@ function Actions() {
   if (!view || !info) return null;
   const free = interaction.kind === 'road' && !!interaction.free;
   const picking = interaction.kind === 'pick' ? interaction.label : null;
+  // (The keys as the player has them: game/bindings.ts.)
+  const hk = (a: BindAction) => keyLabel(keysOf(a, binds)[0] ?? '');
   return (
     <div className="actions parchment">
       {view.currentPlayer === me && view.phase === 'roll' ? (
-        <ReasonButton className="btn gold roll-btn" reason={why.roll} onClick={rollDice} title="Roll the dice (Space)">
-          <Icon name="dice" size={26} /> Roll the dice <kbd>Space</kbd>
+        <ReasonButton className="btn gold roll-btn" reason={why.roll} onClick={rollDice} title={`Roll the dice (${hk('roll')})`}>
+          <Icon name="dice" size={26} /> Roll the dice <kbd>{hk('roll')}</kbd>
         </ReasonButton>
       ) : null}
       <div {...buildsRow(3 + (cardForSale(view) ? 1 : 0) + extras.length)}>
-        <BuildButton label="Road" hotkey="1" cost={COSTS.road} reason={free ? FREE_ROADS : why.road} on={interaction.kind === 'road'} onClick={() => toggleBuild('road')} icon={<Icon name="road" size={34} />} />
-        <BuildButton label="House" hotkey="2" cost={COSTS.settlement} reason={why.settlement} on={interaction.kind === 'settlement'} onClick={() => toggleBuild('settlement')} icon={<Icon name="settlement" size={34} />} />
-        <BuildButton label="Town" hotkey="3" cost={COSTS.city} reason={why.city} on={interaction.kind === 'city'} onClick={() => toggleBuild('city')} icon={<Icon name="city" size={34} />} />
+        <BuildButton label="Road" hotkey={hk('road')} cost={COSTS.road} reason={free ? FREE_ROADS : why.road} on={interaction.kind === 'road'} onClick={() => toggleBuild('road')} icon={<Icon name="road" size={34} />} />
+        <BuildButton label="House" hotkey={hk('house')} cost={COSTS.settlement} reason={why.settlement} on={interaction.kind === 'settlement'} onClick={() => toggleBuild('settlement')} icon={<Icon name="settlement" size={34} />} />
+        <BuildButton label="Town" hotkey={hk('town')} cost={COSTS.city} reason={why.city} on={interaction.kind === 'city'} onClick={() => toggleBuild('city')} icon={<Icon name="city" size={34} />} />
         {/* (A game without development cards, the guilds' for one, has nothing to buy here; Invasion alone sells its muster cards.) */}
-        {cardForSale(view) && <BuildButton label={cardForSale(view) === 'muster' ? 'Muster card' : 'Dev card'} hotkey="4" cost={COSTS.devCard} reason={why.dev} on={false} onClick={buyDevCard} icon={<Icon name="devcard" size={34} />} />}
+        {cardForSale(view) && <BuildButton label={cardForSale(view) === 'muster' ? 'Muster card' : 'Dev card'} hotkey={hk('card')} cost={COSTS.devCard} reason={why.dev} on={false} onClick={buyDevCard} icon={<Icon name="devcard" size={34} />} />}
         {extras.map((b) => (
           <ExtraBuildButton key={b.key} b={b} on={picking === b.label} />
         ))}
