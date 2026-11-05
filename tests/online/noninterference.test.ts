@@ -121,7 +121,8 @@ function audit(g: Game, every: number): Audit {
         canonical(actionFor(st.action, st.actor, v)) !== canonical(actionFor(st.action, st.actor, v as PlayerId)) ||
         seen(r1.state, v) !== seen(r2.state, v);
       if (!differs) continue;
-      if (reveals(st.action as { type: string; card?: string })) out.revealsByRule++;
+      // (A move that ends the game shows the winner's points, hidden ones too: only one world may end.)
+      if (reveals(st.action as { type: string; card?: string }) || r1.state.phase === 'gameOver' || r2.state.phase === 'gameOver') out.revealsByRule++;
       else out.leaks.push(`dynamic seq ${st.before.seq} viewer ${v}: ${st.action.type} by ${st.actor}`);
     }
   });
@@ -148,7 +149,7 @@ describe('noninterference', () => {
   it('is what the playing of a development card needed: which purchase went no longer shows', () => {
     // (The leak the audit found: a knight played took the first matching card, and the others'
     // purchase turns stayed in the view, so the one that vanished said which was played.)
-    const g = playGame('knights', 303, keyed(303).options, keyed(303).secret);
+    const g = playGame('knights', 304, keyed(304).options, keyed(304).secret);
     const plays = g.steps.filter((s) => s.action.type === 'playKnight' || s.action.type === 'playRoadBuilding' || s.action.type === 'playMonopoly');
     expect(plays.length).toBeGreaterThan(0);
     for (const st of plays) {

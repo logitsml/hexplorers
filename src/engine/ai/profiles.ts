@@ -1,4 +1,8 @@
 // Tunable parameters per difficulty. Kept in one table so strength differences are explicit.
+// The levels are spaced by tests/ladder.test.ts (two seats of each of two levels, both seatings per
+// board): the higher level takes about three games in four from the one below, and hard about seven
+// in eight from easy. Hard is the strongest this planner plays: normal sits between by playing
+// noisier setups and valuations, and by spending less on development cards.
 
 export type BotDifficulty = 'easy' | 'normal' | 'hard';
 
@@ -107,12 +111,12 @@ const COMMON = {
 
 export const PROFILES: Record<BotDifficulty, BotProfile> = {
   easy: {
-    noise: 0.8,
+    noise: 1.2,
     greedy: true,
     domestic: true,
     acceptBase: 0.15,
     acceptAhead: 0.05,
-    bankTrades: 3,
+    bankTrades: 2,
     maxRoadDistance: 2,
     contestBehind: 1,
     contestTie: 1,
@@ -142,7 +146,7 @@ export const PROFILES: Record<BotDifficulty, BotProfile> = {
     ...COMMON,
   },
   normal: {
-    noise: 0.1,
+    noise: 0.3,
     greedy: false,
     domestic: true,
     acceptBase: 0.05,
@@ -153,15 +157,15 @@ export const PROFILES: Record<BotDifficulty, BotProfile> = {
     contestTie: 0.85,
     longestRoadGap1: 0.45,
     longestRoadGap2: 0,
-    devCardValue: 1.0,
+    devCardValue: 0.7,
     knightMoveThreshold: 13,
     knightRace: false,
     setupLookahead: 0,
-    setupPick: 'nearBest',
+    setupPick: 'weighted',
     monopolyMin: 4,
     randomRobber: false,
-    dumpAt: 8,
-    spendAbove: 7,
+    dumpAt: 10,
+    spendAbove: Infinity,
     partnerWeight: 0.3,
     tradeChance: 1,
     blockWeight: 0.3,

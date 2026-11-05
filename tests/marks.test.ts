@@ -50,7 +50,7 @@ describe('the expansions’ pieces', () => {
         let acted = false;
         for (let i = 0; i < state.players.length && !acted; i++) {
           const p = (state.seq + i) % state.players.length;
-          const action = botDecide(state, p, memories[p], 'normal');
+          const action = botDecide(state, p, memories[p], 'hard');
           if (!action) continue;
           const r = applyAction(state, p, action);
           if (!r.ok) throw new Error(r.error);

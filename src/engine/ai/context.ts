@@ -555,7 +555,7 @@ export class BotCtx {
     return 1 - spread / 2 + spread * ((h >>> 0) / 4294967296);
   }
 
-  /** Per-option multiplicative noise (easy bots are erratic, normal slightly, hard not at all). */
+  /** Per-option multiplicative noise (easy bots are erratic, normal somewhat, hard not at all). */
   private noise(i: number): number {
     while (this.noiseCache.length <= i) {
       const spread = this.prof.noise;

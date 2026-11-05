@@ -129,8 +129,8 @@ async function live(scenario: string, o: { seed: number; humans: number; seats?:
   await play(t, {
     seen: true,
     until: async (step) => {
-      // Table talk: a line every 7 steps until `lines` are said, with typing before it and a reaction after.
-      if (said < lines && step % 7 === 3) {
+      // Table talk: a line every 5 steps until `lines` are said, with typing before it and a reaction after.
+      if (said < lines && step % 5 === 3) {
         const c = t.clients[said % t.clients.length];
         await t.world.send(t.code, c.sock, { t: 'typing', on: true });
         await t.world.send(t.code, c.sock, { t: 'chat', text: `line ${said + 1}: nice harbour` });
