@@ -100,6 +100,8 @@ export class World {
   /** The island's middle and the distance to its farthest coast (set with the board). */
   readonly islandCentre = new THREE.Vector3();
   islandRadius = 4.5;
+  /** The board's land, as last framed (the editor's draft lends the scenery its own while it's up: see View3D). */
+  boardLand: readonly { x: number; z: number }[] = [];
   /**
    * What the home view and the flat map frame (see frameIsland): the bounding box of the land, its
    * harbours and fishing grounds (x0..x1, z0..z1), and the middle of the land's own box (cx, cz).
@@ -666,6 +668,8 @@ export class World {
    * farthest corner and leaves most of the window to empty sea.
    */
   frameIsland(land: readonly { x: number; z: number }[], board?: Board) {
+    this.boardLand = land;
+    this.distant.keepClear(land);
     this.islandCentre.set(0, 0, 0);
     for (const h of land) this.islandCentre.x += h.x / land.length, (this.islandCentre.z += h.z / land.length);
     this.islandRadius = Math.max(...land.map((h) => Math.hypot(h.x - this.islandCentre.x, h.z - this.islandCentre.z))) + 1.15;

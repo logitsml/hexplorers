@@ -38,6 +38,12 @@ function sceneOf({ map, preview }: { map: CustomMap; preview: number | null }): 
   };
 }
 
+/** The scene's land (world x, z), for the ships sailing round to keep clear of. */
+const landOf = (scene: DraftScene) => scene.cells.filter((h) => h.terrain !== 'sea').map((h) => {
+  const [x, z] = hexCenter(h.q, h.r);
+  return { x, z };
+});
+
 /** A press a brush paints with: a finger or a pen, or the left button with no key held. */
 const paints = (e: PointerEvent) => isBrush(useEditor.getState().tool) && (e.pointerType !== 'mouse' || (e.button === 0 && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey));
 
@@ -192,7 +198,9 @@ export function View3D({ entry = 'fly', leaving = false, onShown, onFlat, onGone
     let unsub = () => {};
     const show = (assemble: boolean) => {
       last = useEditor.getState();
-      draft.setScene(sceneOf(last), gridOf(last.map).cells, new Set(), assemble);
+      const scene = sceneOf(last);
+      draft.setScene(scene, gridOf(last.map).cells, new Set(), assemble);
+      world.distant.keepClear(landOf(scene));
       unsub = useEditor.subscribe((s) => {
         if (s.change.id === last.change.id && s.fit === last.fit && s.preview === last.preview && s.map === last.map) return;
         const dealt = s.preview !== last.preview;
@@ -203,7 +211,9 @@ export function View3D({ entry = 'fly', leaving = false, onShown, onFlat, onGone
         }
         last = s;
         // (A new deal, or going back to the map from one, is dealt out across the island in a quick cascade.)
-        draft.setScene(sceneOf(s), gridOf(s.map).cells, new Set(s.change.cells), dealt, 0.025);
+        const scene = sceneOf(s);
+        draft.setScene(scene, gridOf(s.map).cells, new Set(s.change.cells), dealt, 0.025);
+        world.distant.keepClear(landOf(scene));
       });
     };
     // Each change of direction (a press, a rise) outdates the one before.
@@ -372,6 +382,7 @@ export function View3D({ entry = 'fly', leaving = false, onShown, onFlat, onGone
       canvas.removeEventListener('click', click);
       canvas.removeEventListener('pointerleave', leave);
       draft.dispose();
+      world.distant.keepClear(world.boardLand);
       Object.assign(rig.limits, limits);
       restoreBoardFrame(frame);
       // (Back over the sea as the title has it, unless the flat board has it or a game is taking the camera.)

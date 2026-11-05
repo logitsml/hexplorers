@@ -1077,9 +1077,10 @@
   stroke-dasharray: 6 6;
 }
 
+/* (Open water as the flat map in a game draws it: its sea's colour, with the faint edge its sea hexes get.) */
 .ed-sea {
-  fill: rgba(190, 230, 245, 0.16);
-  stroke: rgba(225, 245, 252, 0.55);
+  fill: #256f98;
+  stroke: rgba(255, 255, 255, 0.2);
 }
 
 .ed-aim {

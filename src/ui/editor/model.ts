@@ -3,7 +3,7 @@
 
 import { CORNER_OFFSETS, SIDE_DIRS, SQRT3, cellAt, hexCenter } from '../../engine/board';
 import { isLand } from '../../engine/constants';
-import { LAKE_NUMBERS, MAX_HEXES, MAX_HOMES, MAX_REACH, MAX_RIVER_LEN, centreOf, dealMap, gridCells, hexDistance, normalize, numbered, rectangle, type CellTerrain, type CustomHex, type CustomMap, type CustomPortType } from '../../engine/maps/custom';
+import { LAKE_NUMBERS, bagOf, MAX_HEXES, MAX_HOMES, MAX_REACH, MAX_RIVER_LEN, centreOf, dealMap, gridCells, hexDistance, normalize, numbered, rectangle, type CellTerrain, type CustomHex, type CustomMap, type CustomPortType } from '../../engine/maps/custom';
 import { Rng } from '../../engine/rng';
 import type { Terrain } from '../../engine';
 
@@ -62,9 +62,17 @@ export function sideCorners(q: number, r: number, side: number): [[number, numbe
 
 const landAt = (map: CustomMap, q: number, r: number) => landish(hexOf(map, q, r)?.terrain);
 
-/** Whether side `side` of cell (q, r) can take a harbour: the cell is fixed land and its neighbour isn't land. */
+/**
+ * Whether side `side` of cell (q, r) can take a harbour: the cell is land and its neighbour isn't,
+ * as the game reads them (a random cell is land, unless the bag may deal it as sea: then it may
+ * hold no harbour, and may face one).
+ */
 export function coastal(map: CustomMap, q: number, r: number, side: number) {
-  return fixedLand(hexOf(map, q, r)?.terrain) && !landAt(map, q + SIDE_DIRS[side][0], r + SIDE_DIRS[side][1]);
+  const seaInBag = (bagOf(map).sea ?? 0) > 0;
+  const t = hexOf(map, q, r)?.terrain;
+  if (!(fixedLand(t) || (t === 'random' && !seaInBag))) return false;
+  const n = hexOf(map, q + SIDE_DIRS[side][0], r + SIDE_DIRS[side][1])?.terrain;
+  return !landish(n) || (n === 'random' && seaInBag);
 }
 
 /** The land side a point on the board would put a harbour on: the cell it's in, else the land across the side it's nearest. */
@@ -159,7 +167,8 @@ function painted(old: CustomHex | undefined, q: number, r: number, terrain: Cell
   const hex: CustomHex = { q, r, terrain };
   if (old?.number !== undefined && ((numbered(terrain) && numbered(old.terrain)) || (terrain === 'sea' && old.terrain === 'sea'))) hex.number = old.number;
   if (old?.well && landish(terrain) && terrain !== 'lake') hex.well = true;
-  if (old?.hidden) hex.hidden = true;
+  // (The fog stays, but not over a feature, which is seen from the start: see fogless.)
+  if (old?.hidden && !fogless(hex)) hex.hidden = true;
   return hex;
 }
 
@@ -201,6 +210,36 @@ export function toggleFlag(map: CustomMap, cells: [number, number][], flag: 'hid
   return changed ? { ...map, hexes } : map;
 }
 
+/** Whether the fog may not hide a cell: an expansion's feature, which must be seen from the start (the check's rule). */
+export const fogless = (h: CustomHex) => h.terrain === 'lake' || h.terrain === 'castle' || h.terrain === 'oasis' || h.terrain === 'swamp' || !!h.well;
+
+/**
+ * The map with the fog laid on the cells (`on`) or lifted off them. Fog laid on a cell of the grid
+ * the map doesn't list yet brings it onto the map as open sea under the fog (cells off the grid
+ * are left alone).
+ */
+export function setFog(map: CustomMap, cells: [number, number][], on: boolean): CustomMap {
+  const want = new Set(cells.filter(([q, r]) => inGrid(map, q, r)).map(([q, r]) => key(q, r)));
+  let changed = false;
+  const hexes = map.hexes.map((h): CustomHex => {
+    const k = key(h.q, h.r);
+    if (!want.has(k)) return h;
+    want.delete(k);
+    if (!!h.hidden === on || (on && fogless(h))) return h;
+    changed = true;
+    if (on) return { ...h, hidden: true };
+    const { hidden: _h, ...out } = h;
+    return out;
+  });
+  if (on)
+    for (const k of want) {
+      const [q, r] = k.split(',').map(Number);
+      hexes.push({ q, r, terrain: 'sea', hidden: true });
+      changed = true;
+    }
+  return changed ? { ...map, hexes } : map;
+}
+
 /** The map with `n` on cell (q, r) (taken off again if it already bears it), 'deal' taking a fixed number off; null when the cell takes no number. */
 export function setNumber(map: CustomMap, q: number, r: number, n: number | 'deal'): CustomMap | null {
   const old = hexOf(map, q, r);
@@ -208,7 +247,8 @@ export function setNumber(map: CustomMap, q: number, r: number, n: number | 'dea
   const hex: CustomHex = { ...old };
   if (n === 'deal' || old.number === n) delete hex.number;
   else hex.number = n;
-  if (hex.number === old.number) return map;
+  // (Dealt on a hex already without a number: it's left to the deal, which is turned on.)
+  if (hex.number === old.number) return n === 'deal' && !map.deal ? { ...map, deal: true } : map;
   // (Leaving a number to the deal turns the deal on.)
   return { ...map, hexes: map.hexes.map((h) => (h === old ? hex : h)), ...(n === 'deal' && { deal: true }) };
 }
@@ -262,6 +302,7 @@ export function toggleHome(map: CustomMap, q: number, r: number): CustomMap | nu
 
 /** Whether marking (q, r)'s island home is refused for the limit alone (a map holds at most MAX_HOMES). */
 export function homesFull(map: CustomMap, q: number, r: number): boolean {
+  if (!fixedLand(hexOf(map, q, r)?.terrain)) return false;
   const island = islandOf(map, q, r);
   const home = map.home ?? [];
   return home.length >= MAX_HOMES && !home.some(([a, b]) => island.has(key(a, b)));
@@ -290,7 +331,7 @@ export function islandOf(map: CustomMap, q: number, r: number): Set<string> {
  * carries it on; a cell on a river cuts it back to there; anywhere else on fixed land starts a new
  * one (a third replaces the oldest). Returns the map and the river now being drawn.
  */
-export function riverAt(map: CustomMap, q: number, r: number, drawing: number | null): { map: CustomMap; drawing: number | null; refused?: string } | null {
+export function riverAt(map: CustomMap, q: number, r: number, drawing: number | null): { map: CustomMap; drawing: number | null; refused?: string; note?: string } | null {
   if (!fixedLand(hexOf(map, q, r)?.terrain)) return null;
   const rivers = (map.rivers ?? []).map((rv) => ({ path: [...rv.path] }));
   const on = rivers.findIndex((rv) => rv.path.some(([a, b]) => a === q && b === r));
@@ -298,6 +339,8 @@ export function riverAt(map: CustomMap, q: number, r: number, drawing: number | 
     const i = rivers[on].path.findIndex(([a, b]) => a === q && b === r);
     // (The end tapped again finishes it; elsewhere along it, cut back to there.)
     if (i === rivers[on].path.length - 1 && drawing === on) return { map, drawing: null };
+    // (Its end, tapped to carry it on: nothing changes but the river being drawn.)
+    if (i === rivers[on].path.length - 1) return { map, drawing: on };
     rivers[on].path = rivers[on].path.slice(0, i + 1);
     return { map: { ...map, rivers }, drawing: on };
   }
@@ -308,9 +351,11 @@ export function riverAt(map: CustomMap, q: number, r: number, drawing: number | 
     cur.path.push([q, r]);
     return { map: { ...map, rivers }, drawing };
   }
-  if (rivers.length >= 2) rivers.shift();
+  // (The Rivers expansion runs two: a third takes the place of the first, and says so.)
+  const replaced = rivers.length >= 2;
+  if (replaced) rivers.shift();
   rivers.push({ path: [[q, r]] });
-  return { map: { ...map, rivers }, drawing: rivers.length - 1 };
+  return { map: { ...map, rivers }, drawing: rivers.length - 1, ...(replaced && { note: 'A map has two rivers: the first was taken up for this one' }) };
 }
 
 // ---------------------------------------------------------------- the grid

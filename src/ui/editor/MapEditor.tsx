@@ -142,6 +142,15 @@ export function MapEditor() {
       world.drawEnabled = true;
     };
   }, [resting, starting]);
+  // The title's sandbank (its clear shallows over where its island waits) goes down while the
+  // editor is open: the draft is the only island, and the sea round it is open water, as in a
+  // game. It comes up again for the title (a test game's island has its own).
+  useEffect(() => {
+    const world = session.world;
+    if (!world) return;
+    void world.shoal(false, 0.8);
+    return () => void (!session.host && world.shoal(true, 1.2));
+  }, []);
   // The 3D view's shaders are built in the background a little after the editor opens, so going
   // to 3D shows the island at once.
   useEffect(() => {
@@ -179,8 +188,8 @@ export function MapEditor() {
         else if (st.drawing !== null) st.set({ drawing: null });
       } else if (!mod && /^[1-8]$/.test(k)) {
         const terrains = ['forest', 'pasture', 'fields', 'hills', 'mountains', 'desert', 'sea', 'random'] as const;
-        st.set({ tool: { kind: 'terrain', terrain: terrains[Number(k) - 1] }, category: 'land' });
-      } else if (!mod && k === 'e') st.set({ tool: { kind: 'erase' }, category: 'land' });
+        st.set({ tool: { kind: 'terrain', terrain: terrains[Number(k) - 1] }, category: 'land', drawing: null });
+      } else if (!mod && k === 'e') st.set({ tool: { kind: 'erase' }, category: 'land', drawing: null });
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

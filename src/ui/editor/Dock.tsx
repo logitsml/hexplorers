@@ -4,7 +4,7 @@
 
 import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
 import { Children, useRef, type KeyboardEvent, type ReactNode } from 'react';
-import { CUSTOM_NUMBERS, CUSTOM_TERRAINS, MAX_REACH, PORT_TYPES, bagOf, bagSize, classicBag, isRandom, type CellTerrain, type CustomMap, type CustomTerrain } from '../../engine/maps/custom';
+import { CUSTOM_NUMBERS, CUSTOM_TERRAINS, MAX_HEXES, MAX_REACH, PORT_TYPES, bagOf, bagSize, classicBag, isRandom, type CellTerrain, type CustomMap, type CustomTerrain } from '../../engine/maps/custom';
 import { PIPS } from '../../engine/constants';
 import { Rng } from '../../engine/rng';
 import { dealNumbers, fillTerrain, placeHarbours, scatterIslets, surroundWithSea } from '../../engine/maps/custom';
@@ -14,7 +14,7 @@ import { FILL } from '../FlatBoard';
 import { BountyGlyph, CastleGlyph, FlatDefs, OasisGlyph, OilWellGlyph, SwampGlyph } from '../flatArt';
 import { CloseIcon, LineIcon, type LineIconName } from '../LineIcons';
 import { Morph } from '../Morph';
-import { canvasSize, crop, fillGaps, resize, type Tool } from './model';
+import { canvasSize, crop, fillGaps, paint, resize, type Tool } from './model';
 import { useEditor, type Category } from './store';
 
 const seed = () => Math.floor(Math.random() * 1e9);
@@ -28,6 +28,9 @@ const CATEGORIES: { id: Category; label: string; icon: ReactNode }[] = [
   { id: 'sea', label: 'Isles & fog', icon: <><path d="M3 15q3-2 6 0t6 0 6 0M3 19q3-2 6 0t6 0 6 0" /><path d="M8 11q1-4 4-4t4 4" /></> },
   { id: 'map', label: 'Map', icon: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" /></> },
 ];
+
+/** The plain land a bag deals (Make the land random turns these random). */
+const PLAIN: CellTerrain[] = ['forest', 'pasture', 'fields', 'hills', 'mountains', 'desert'];
 
 const same = (a: Tool, b: Tool) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -73,6 +76,14 @@ const Die = () => (
     {[[8.5, 8.5], [15.5, 15.5], [12, 12], [15.5, 8.5], [8.5, 15.5]].map(([x, y], i) => (
       <circle key={i} cx={x} cy={y} r="1.3" fill="#6b5233" transform="rotate(-10 12 12)" />
     ))}
+  </svg>
+);
+
+/** An expansion's tile: a hex of its ground, as the Land tab's are, with its glyph from the flat map on it. */
+const TileHex = ({ terrain, children }: { terrain: CustomTerrain; children: ReactNode }) => (
+  <svg viewBox="0 0 30 30" width="30" height="30" aria-hidden>
+    <polygon points="15,1.5 26.7,8.25 26.7,21.75 15,28.5 3.3,21.75 3.3,8.25" fill={FILL[terrain]} stroke="rgba(0,0,0,.22)" strokeWidth="1.05" />
+    {children}
   </svg>
 );
 
@@ -180,7 +191,15 @@ function Brush() {
 const whole = (fn: (m: CustomMap, rng: Rng) => CustomMap) => {
   press();
   const st = useEditor.getState();
-  st.edit((m) => fn(m, new Rng(seed())), st.map.hexes.map((h) => `${h.q},${h.r}`));
+  // (Refused past the most a map lists: a map with more could be kept but never opened again.)
+  st.edit(
+    (m) => {
+      const next = fn(m, new Rng(seed()));
+      return next.hexes.length > MAX_HEXES && next.hexes.length > m.hexes.length ? null : next;
+    },
+    st.map.hexes.map((h) => `${h.q},${h.r}`),
+    `That would take the map past ${MAX_HEXES} hexes, the most a map holds`,
+  );
 };
 
 /** The edits to the whole map, below a category's tools: one press each, undone as one step. */
@@ -296,7 +315,7 @@ function FeatureTools() {
   return (
     <>
       <Row>
-        {terrain('bounty', 'Bounty', 'Sea Lanes', 'A bounty field: produces a resource of its owner’s choice', <Glyph><BountyGlyph x={15} y={15} s={28} /></Glyph>)}
+        {terrain('bounty', 'Bounty', 'Sea Lanes', 'A bounty field: produces a resource of its owner’s choice', <TileHex terrain="bounty"><BountyGlyph x={15} y={15} s={19} /></TileHex>)}
         {terrain('lake', 'Lake', 'Fisheries', 'The lake: fish on 2, 3, 11 and 12', <Hex fill={FILL.lake} />)}
         <Chip tool={{ kind: 'ground' }} label="Fishing" small="Fisheries" tip="A fishing ground on the sea beside the land (six: 4, 5, 6, 8, 9 and 10)">
           <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden>
@@ -304,14 +323,14 @@ function FeatureTools() {
             <circle cx="12" cy="12" r="4.5" fill="#f7efdc" stroke="#bfa877" />
           </svg>
         </Chip>
-        {terrain('swamp', 'Swamp', 'Rivers', 'A swamp: where a river meets the sea', <Glyph><SwampGlyph x={15} y={15} s={28} /></Glyph>)}
+        {terrain('swamp', 'Swamp', 'Rivers', 'A swamp: where a river meets the sea', <TileHex terrain="swamp"><SwampGlyph x={15} y={15} s={19} /></TileHex>)}
         <Chip tool={{ kind: 'river' }} label={drawing !== null ? 'Drawing…' : 'River'} small="Rivers" tip="Tap hexes from a spring to a swamp on the coast; tap the end again to finish">
           <svg viewBox="0 0 24 24" width="28" height="28" fill="none" aria-hidden>
             <path d="M5 4q6 4 2 8t5 8" stroke="#3b8fc4" strokeWidth="3" strokeLinecap="round" />
           </svg>
         </Chip>
-        {terrain('oasis', 'Oasis', 'Wagon Trains', 'The oasis the wagon trains run from', <Glyph><OasisGlyph x={15} y={15} s={28} /></Glyph>)}
-        {terrain('castle', 'Castle', 'Invasion', 'The castle, on the home island’s coast', <Glyph><CastleGlyph x={15} y={15} s={28} /></Glyph>)}
+        {terrain('oasis', 'Oasis', 'Wagon Trains', 'The oasis the wagon trains run from', <TileHex terrain="oasis"><OasisGlyph x={15} y={15} s={19} /></TileHex>)}
+        {terrain('castle', 'Castle', 'Invasion', 'The castle, on the home island’s coast', <TileHex terrain="castle"><CastleGlyph x={15} y={15} s={19} /></TileHex>)}
         <Chip tool={{ kind: 'well' }} label="Well" small="Oil" tip="An oil well (three on the home island)">
           <Glyph>
             <OilWellGlyph x={15} y={15} s={28} />
@@ -366,7 +385,7 @@ function SeaTools() {
         <Act icon="cloud" onClick={() => whole((m, rng) => fillGaps(scatterIslets(m, rng, undefined, 3, true)))} tip="Islets face down in the fog, to be found">
           Add islets in the fog
         </Act>
-        <Act icon="eye" onClick={() => whole((m) => ({ ...m, hexes: m.hexes.map(({ hidden: _h, ...h }) => h) }))} tip="Every cell face up">
+        <Act icon="eye" onClick={() => whole((m) => (m.hexes.some((h) => h.hidden) ? { ...m, hexes: m.hexes.map(({ hidden: _h, ...h }) => h) } : m))} tip="Every cell face up">
           Clear the fog
         </Act>
       </Actions>
@@ -408,7 +427,7 @@ function MapTools() {
         <Act icon="sparkle" onClick={() => whole((m, rng) => fillTerrain(m, rng))} tip="New terrain and numbers for the land you’ve drawn">
           Fill terrain
         </Act>
-        <Act icon="play" onClick={() => whole((m) => ({ ...m, deal: true, hexes: m.hexes.map((h) => (['forest', 'pasture', 'fields', 'hills', 'mountains', 'desert'].includes(h.terrain) ? { q: h.q, r: h.r, terrain: 'random' as CellTerrain, ...(h.hidden && { hidden: true as const }) } : h)) }))} tip="Every plain land hex dealt from the bag each game">
+        <Act icon="play" onClick={() => whole((m) => ({ ...paint(m, m.hexes.filter((h) => PLAIN.includes(h.terrain)).map((h) => [h.q, h.r]), 'random'), deal: true }))} tip="Every plain land hex dealt from the bag each game (what needs fixed land, the robber’s start, home marks, rivers and wells, comes off it)">
           Make the land random
         </Act>
         {isRandom(map) && (
@@ -416,7 +435,7 @@ function MapTools() {
             Preview a deal
           </Act>
         )}
-        <Act icon="map" onClick={() => (press(), s.edit((m) => crop(m), s.map.hexes.map((h) => `${h.q},${h.r}`)))} tip="Take off the open water far from the land, and centre the map">
+        <Act icon="map" onClick={() => (press(), s.edit((m) => crop(m)))} tip="Take off the open water far from the land, and centre the map">
           Crop to map
         </Act>
         <Act icon="focus" onClick={() => (press(), s.set({ fit: s.fit + 1 }))} tip="Frame the whole map in view">

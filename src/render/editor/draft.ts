@@ -477,7 +477,9 @@ export class DraftIsland {
   private material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 });
   private fogMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, transparent: true, opacity: 0.62, depthWrite: false });
   private riverMaterial = new THREE.MeshStandardMaterial({ color: '#3f8fc4', roughness: 0.25, metalness: 0.05, side: THREE.DoubleSide });
-  private seaMaterial = new THREE.MeshBasicMaterial({ color: '#bfe6f5', transparent: true, opacity: 0.22, depthWrite: false });
+  // (Open water is the world's own sea, as in a game: a map's sea cells are only edged, faintly.)
+  private seaMaterial = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.24, depthWrite: false });
+  private seaEdge = hexRing(0.95, 0.99);
   private gridMaterial = new THREE.LineBasicMaterial({ color: '#e8f6fb', transparent: true, opacity: 0.32 });
   private aimMaterial = new THREE.MeshBasicMaterial({ color: '#fff3b0', transparent: true, opacity: 0.95, depthWrite: false });
   private ghostMaterial = new THREE.MeshBasicMaterial({ color: '#fff3b0', transparent: true, opacity: 0.4, depthWrite: false });
@@ -579,7 +581,7 @@ export class DraftIsland {
       const bar = kind.startsWith('bar');
       const m = new THREE.Mesh(bar ? shapes.box : this.ringGeometry, kind.endsWith('~') ? this.ghostMaterial : this.aimMaterial);
       if (bar) m.scale.set(1, 0.04, 0.1);
-      m.renderOrder = 10;
+      m.renderOrder = 13;
       m.visible = false;
       this.group.add(m);
       pool.push(m);
@@ -617,9 +619,10 @@ export class DraftIsland {
    */
   setScene(scene: DraftScene, grid: readonly (readonly [number, number])[], fresh: ReadonlySet<string>, animateAll = false, cascade = 0.06) {
     if (this.disposed) return;
-    this.setGrid(grid);
     const anim = (c: string) => !this.still && (animateAll || fresh.has(c));
     const want = new Map(scene.cells.map((h) => [key(h.q, h.r), h]));
+    // (The grid's rings only where the map has no cell yet: its sea is edged as a game's is.)
+    this.setGrid(grid.filter(([q, r]) => !want.has(key(q, r))));
     let k = 0;
     const next = () => (animateAll ? k++ * cascade : 0);
 
@@ -652,16 +655,16 @@ export class DraftIsland {
     for (const h of scene.cells) {
       const c = key(h.q, h.r);
       if (h.terrain !== 'sea' || this.seas.has(c)) continue;
-      const m = new THREE.Mesh(shapes.hex, this.seaMaterial);
+      const m = new THREE.Mesh(this.seaEdge, this.seaMaterial);
       const [x, z] = hexCenter(h.q, h.r);
-      m.position.set(x, SEA_LEVEL + 0.02, z);
-      m.scale.set(0.93, 0.01, 0.93);
-      m.renderOrder = 1;
+      m.position.set(x, SEA_LEVEL + 0.05, z);
+      // (After the sea (10), which would otherwise wash it out.)
+      m.renderOrder = 11;
       this.group.add(m);
       this.seas.set(c, m);
       if (anim(c)) {
         this.ripple(x, z);
-        this.world.animator.tween({ duration: 0.5, easing: ease.outBack, update: (t) => m.scale.set(0.93 * t, 0.01, 0.93 * t) });
+        this.world.animator.tween({ duration: 0.5, easing: ease.outBack, update: (t) => m.scale.set(Math.max(0.001, t), 1, Math.max(0.001, t)) });
       }
     }
     // Discs: a number, a lake's four in a ring, a fishing ground's afloat in its buoys, or a "?" still to be dealt.
@@ -703,10 +706,12 @@ export class DraftIsland {
       return g;
     }, anim, 'pop');
     // The fog.
-    this.syncPieces(this.fogs, new Map(scene.cells.filter((h) => h.hidden).map((h) => [key(h.q, h.r), h])), (h) => {
+    // (Keyed by its height too: a fogged cell painted from sea to land, or back, has its fog at the new one.)
+    this.syncPieces(this.fogs, new Map(scene.cells.filter((h) => h.hidden).map((h) => [`${key(h.q, h.r)}:${h.terrain === 'sea' ? 's' : 'l'}`, h])), (h) => {
       const g = new THREE.Group();
       const m = new THREE.Mesh(fogGeometry((h.q + 9) * 37 + h.r), this.fogMaterial);
-      m.renderOrder = 4;
+      // (After the sea (10): drawn before it, the fog on open water was washed out of sight.)
+      m.renderOrder = 12;
       g.add(m);
       const [x, z] = hexCenter(h.q, h.r);
       g.position.set(x, (h.terrain === 'sea' ? SEA_LEVEL : TOP) + 0.2, z);
@@ -782,7 +787,7 @@ export class DraftIsland {
     for (const [c, g] of have) {
       if (want.has(c)) continue;
       have.delete(c);
-      if (how === 'roll' && anim(c)) {
+      if (how === 'roll' && anim(c.split(':')[0])) {
         const y0 = g.position.y;
         this.world.animator.tween({
           duration: 0.6,
@@ -794,14 +799,14 @@ export class DraftIsland {
           },
           done: () => this.release(g),
         });
-      } else this.lift(g, anim(c));
+      } else this.lift(g, anim(c.split(':')[0]));
     }
     for (const [c, h] of want) {
       if (have.has(c)) continue;
       const g = make(h);
       this.group.add(g);
       have.set(c, g);
-      if (!anim(c)) continue;
+      if (!anim(c.split(':')[0])) continue;
       if (how === 'roll') {
         g.scale.setScalar(0.001);
         const y0 = g.position.y;
@@ -829,7 +834,8 @@ export class DraftIsland {
   /** The rivers as blue ribbons from spring to mouth, run on past the coast into the sea; rebuilt when they change. */
   private setRivers(scene: DraftScene, fresh: ReadonlySet<string>, animateAll: boolean) {
     const cells = scene.cells;
-    const sig = JSON.stringify(scene.rivers) + scene.rivers.flat().map(([q, r]) => cells.find((h) => h.q === q && h.r === r)?.terrain ?? '').join();
+    // (With the side each runs out to the sea by, which the cells round its mouth decide.)
+    const sig = JSON.stringify(scene.rivers) + scene.rivers.flat().map(([q, r]) => cells.find((h) => h.q === q && h.r === r)?.terrain ?? '').join() + scene.rivers.map((p) => mouthSide({ hexes: cells }, p)).join();
     if (sig === this.riversSig) return;
     this.riversSig = sig;
     if (this.rivers) this.release(this.rivers);
@@ -1140,6 +1146,7 @@ export class DraftIsland {
     for (const m of this.seas.values()) this.group.remove(m);
     this.grid?.geometry.dispose();
     this.ringGeometry.dispose();
+    this.seaEdge.dispose();
     for (const t of this.faces.values()) t.dispose();
     for (const g of Object.values(this.shared)) g.dispose();
     for (const m of [this.material, this.fogMaterial, this.riverMaterial, this.seaMaterial, this.gridMaterial, this.aimMaterial, this.ghostMaterial, this.discSide]) m.dispose();

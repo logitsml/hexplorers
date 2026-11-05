@@ -7,7 +7,7 @@ import { sortModules, type ModuleId, type Terrain } from '../../engine';
 import { newMapId, storeMap } from '../../game/customMaps';
 import { sfx } from '../../audio/sfx';
 import { TERRAIN_NAMES } from '../../game/names';
-import { brushCells, cellAt, harbourAt, hexOf, inGrid, key, paint, homesFull, riverAt, setGround, setHarbour, setNumber, setPiece, toggleFlag, toggleHome, turn, turnsOf, type Tool } from './model';
+import { brushCells, cellAt, coastal, fogless, harbourAt, hexOf, inGrid, key, paint, homesFull, riverAt, setFog, setGround, setHarbour, setNumber, setPiece, toggleFlag, toggleHome, turn, turnsOf, type Tool } from './model';
 
 /** What just changed, for the boards to animate: the cells touched by the last edit. */
 export interface Change {
@@ -163,7 +163,10 @@ export const useEditor = create<EditorState>((set, get) => ({
     const before = modulesFor(map);
     const wanted = modulesFor(next).filter((m) => !before.includes(m));
     const modules = wanted.length ? sortModules([...new Set([...was, ...wanted])]) : was;
-    set({ map: next, past: merge && past.length ? past : [...past.slice(-LIMIT + 1), { map, modules: was }], future: [], dirty: true, preview: null, modules, change: { id: ++changeId, cells } });
+    // (A river being drawn that the edit took off, or cut short to nothing, is drawn no more.)
+    const { drawing } = get();
+    const still = drawing === null || !!next.rivers?.[drawing];
+    set({ map: next, past: merge && past.length ? past : [...past.slice(-LIMIT + 1), { map, modules: was }], future: [], dirty: true, preview: null, modules, change: { id: ++changeId, cells }, ...(!still && { drawing: null }) });
     return true;
   },
   // (The name stays as it is now: it's typed, not drawn, and isn't among the steps.)
@@ -247,6 +250,10 @@ const buzz = () => {
 let strokeFlag = true;
 /** Whether the current stroke has changed the map yet: its later cells join that one step to undo. */
 let strokeLanded = false;
+/** Whether the current stroke has said why something was refused (it says so once). */
+let strokeSaid = false;
+/** Whether the current stroke's press only ended a preview: the rest of the drag paints nothing. */
+let strokeVoid = false;
 /** The cell a stroke's symmetry turns about: the map's centre as the stroke began (it moves as the map grows). */
 let strokePivot: [number, number] = [0, 0];
 
@@ -262,12 +269,19 @@ export function applyTool(x: number, z: number, stroke = false) {
   const turns = turnsOf(symmetry);
   if (!stroke) strokePivot = centreOf(map);
   const pivot = strokePivot;
+  if (!stroke) strokeVoid = strokeSaid = false;
+  if (strokeVoid) return;
   const mirrored = (cells: [number, number][]) => {
     const out = new Map<string, [number, number]>();
     for (const t of turns) for (const [a, b] of cells) out.set(key(...turn(a, b, t, pivot)), turn(a, b, t, pivot));
     return [...out.values()].filter(([a, b]) => inGrid(map, a, b));
   };
-  const say = (text: string) => !stroke && st.say(text, true);
+  // (Said once a stroke: a drag that runs into a limit says why it stopped, not at every cell.)
+  const say = (text: string) => {
+    if (stroke && strokeSaid) return;
+    strokeSaid = true;
+    st.say(text, true);
+  };
   const done = (sound: Parameters<typeof sfx.play>[0], volume = 0.8) => {
     sfx.play(sound, { volume: stroke ? volume * 0.55 : volume });
     buzz();
@@ -275,6 +289,7 @@ export function applyTool(x: number, z: number, stroke = false) {
   // A deal being previewed: the press only ends the preview (the map under it isn't what's shown).
   if (st.preview !== null) {
     st.set({ preview: null });
+    strokeVoid = true;
     return;
   }
   // (A drag paints one step to undo, however many cells it crosses.)
@@ -315,24 +330,41 @@ export function applyTool(x: number, z: number, stroke = false) {
     }
     return;
   }
-  if (tool.kind === 'fog' || tool.kind === 'well') {
-    const flag = tool.kind === 'fog' ? 'hidden' : 'well';
-    const cells = mirrored(tool.kind === 'fog' ? brushCells(q, r, brush) : [[q, r]]).filter(([a, b]) => hexOf(map, a, b));
+  if (tool.kind === 'fog') {
+    // (A stroke keeps to what its press did: lifting the fog where the press found it, laying it
+    // everywhere else, empty cells and all, which come onto the map as sea under the fog.)
+    const pressed = hexOf(map, q, r);
+    if (!stroke) strokeFlag = !pressed?.hidden;
+    const on = strokeFlag;
+    if (on && pressed && fogless(pressed)) say('The fog can’t hide a lake, castle, oasis, swamp or well: they’re seen from the start');
+    const cells = mirrored(brushCells(q, r, brush)).filter(([a, b]) => on || hexOf(map, a, b));
     if (cells.length === 0) return;
-    // (A stroke keeps to what its first cell did, fogging or clearing all the way.)
-    const ok = landed(st.edit((m) => toggleFlag(m, cells, flag, stroke ? strokeFlag : undefined), cells.map(([a, b]) => key(a, b)), tool.kind === 'well' && !stroke ? 'Wells go on fixed land, not the sea or a lake' : undefined, merge));
-    if (!stroke) strokeFlag = !!hexOf(useEditor.getState().map, ...cells[0])?.[flag];
-    if (ok) done(tool.kind === 'fog' ? 'whoosh' : 'anvil', 0.5);
+    const adds = cells.filter(([a, b]) => !hexOf(map, a, b)).length;
+    if (adds > 0 && map.hexes.length + adds > MAX_HEXES) {
+      say(`A map holds at most ${MAX_HEXES} hexes`);
+      return;
+    }
+    if (landed(st.edit((m) => setFog(m, cells, on), cells.map(([a, b]) => key(a, b)), undefined, merge))) done('whoosh', 0.5);
+    return;
+  }
+  if (tool.kind === 'well') {
+    const cells = mirrored([[q, r]]).filter(([a, b]) => hexOf(map, a, b));
+    if (cells.length === 0) return;
+    if (st.edit((m) => toggleFlag(m, cells, 'well'), cells.map(([a, b]) => key(a, b)), 'Wells go on fixed land, not the sea or a lake')) done('anvil', 0.5);
     return;
   }
   if (tool.kind === 'number') {
     const h = hexOf(map, q, r);
     const refusal = !h ? 'Numbers go on land' : h.terrain === 'random' ? 'A random hex is dealt its number with its terrain' : h.terrain === 'sea' ? 'On the sea, use the fishing ground tool' : `${TERRAIN_NAMES[h.terrain as Terrain]} takes no number`;
     const cells = mirrored([[q, r]]);
+    // (The images round the middle follow the tapped hex: it takes the number, or has it taken off, and so do they.)
+    const removing = tool.n !== 'deal' && h?.number === tool.n;
     let refused = false;
     const ok = st.edit(
       (m) =>
         cells.reduce<CustomMap>((acc, [a, b]) => {
+          const img = a !== q || b !== r ? hexOf(acc, a, b) : undefined;
+          if (img && tool.n !== 'deal' && (img.number === tool.n) !== removing) return acc;
           const next = setNumber(acc, a, b, tool.n);
           if (!next && a === q && b === r) refused = true;
           return next ?? acc;
@@ -361,7 +393,7 @@ export function applyTool(x: number, z: number, stroke = false) {
       return images.reduce((acc, s) => {
         const there = acc.ports.find((p) => p.q === s.q && p.r === s.r && p.side === s.side);
         if (removing) return there ? { ...acc, ports: acc.ports.filter((p) => p !== there) } : acc;
-        return there?.type === tool.type ? acc : setHarbour(acc, s, tool.type);
+        return there?.type === tool.type || !coastal(acc, s.q, s.r, s.side) ? acc : setHarbour(acc, s, tool.type);
       }, next);
     }, [key(at.q, at.r), ...images.map((s) => key(s.q, s.r))]);
     if (ok) done('creak');
@@ -383,6 +415,7 @@ export function applyTool(x: number, z: number, stroke = false) {
     }
     if (res.map !== map) st.edit(() => res.map, [key(q, r)]);
     st.set({ drawing: res.drawing });
+    if (res.note) st.say(res.note);
     done(res.drawing === null ? 'chime' : 'splash', 0.5);
     return;
   }

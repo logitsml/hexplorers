@@ -125,7 +125,11 @@ function makeShip(): { hull: THREE.BufferGeometry; sails: THREE.BufferGeometry }
 
 export class DistantScenery {
   group = new THREE.Group();
-  private ships: { obj: THREE.Object3D; r: number; angle: number; speed: number; cx: number; cz: number; phase: number }[] = [];
+  /** `r`: how far out it sails now; `base`, its own course's; `berth`, the course clear of the land (see keepClear). */
+  private ships: { obj: THREE.Object3D; r: number; base: number; berth: number; angle: number; speed: number; cx: number; cz: number; phase: number }[] = [];
+  /** The board's land (world x, z), which the ships, the whale and the lighthouse keep clear of. */
+  private landAt: readonly { x: number; z: number }[] = [];
+  private lighthouse: THREE.Group;
   private beam: THREE.Mesh;
   private beamPivot = new THREE.Object3D();
   private lampMat: THREE.MeshBasicNodeMaterial;
@@ -204,6 +208,7 @@ export class DistantScenery {
     lighthouse.position.copy(this.lighthousePos);
     lighthouse.scale.setScalar(0.5);
     this.group.add(lighthouse);
+    this.lighthouse = lighthouse;
     // Beam: a long additive cone that sweeps around.
     const beamGeo = new THREE.ConeGeometry(1.4, 16, 24, 1, true);
     beamGeo.rotateZ(Math.PI / 2);
@@ -272,8 +277,32 @@ export class DistantScenery {
       g.add(hull, sails);
       g.scale.setScalar(0.55 + i * 0.1);
       this.fleet.add(g);
-      this.ships.push({ obj: g, r: 15 + i * 7, ...course });
+      const r = 15 + i * 7;
+      this.ships.push({ obj: g, r, base: r, berth: r, ...course });
     });
+    this.keepClear(this.landAt);
+  }
+
+  /**
+   * The board's land (its hexes' middles, world x, z): a big map (the editor's reaches some 28 out)
+   * lies across the ships' courses, the whale's water and the lighthouse's rock. A ship whose course
+   * would cross it sails a wider one, out of its way; the whale surfaces only in open water; and the
+   * lighthouse sinks out of sight under land. (The editor sets it as the draft changes.)
+   */
+  keepClear(land: readonly { x: number; z: number }[]) {
+    this.landAt = land;
+    for (const s of this.ships) {
+      let reach = 0;
+      for (const h of land) reach = Math.max(reach, Math.hypot(h.x - s.cx, h.z - s.cz));
+      // (A hex's corners lie 1 from its middle; the hull, and a little water, beyond that.)
+      s.berth = land.length ? Math.max(s.base, reach + 3.2) : s.base;
+    }
+  }
+
+  /** Whether (x, z) lies within `room` of the board's land (its hexes' edges). */
+  private byLand(x: number, z: number, room: number) {
+    for (const h of this.landAt) if (Math.hypot(h.x - x, h.z - z) < 1 + room) return true;
+    return false;
   }
 
   update(dt: number, t: number, night: number) {
@@ -283,8 +312,19 @@ export class DistantScenery {
     this.lampMat.color.copy(LIGHTHOUSE).multiplyScalar(lampLevel(night, 0.45));
     this.beamStrength.value = night * 0.75;
     this.beam.visible = night > 0.05;
+    // (Sunk out of sight while the land covers its rock, raised again once it's clear.)
+    const lit = this.byLand(this.lighthousePos.x, this.lighthousePos.z, 1.6) ? 0 : 0.5;
+    const lh = this.lighthouse;
+    if (lh.scale.x !== lit) {
+      const k = Math.min(1, dt * 4);
+      const sc = Math.abs(lit - lh.scale.x) < 0.005 ? lit : lh.scale.x + (lit - lh.scale.x) * k;
+      lh.scale.setScalar(sc);
+      lh.visible = sc > 0.005;
+    }
     for (const s of this.ships) {
-      s.angle += s.speed * dt;
+      // (Out to a wider course, or back to its own, at an easy pace.)
+      s.r += (s.berth - s.r) * Math.min(1, dt * 1.5);
+      s.angle += (s.speed * dt * s.base) / s.r;
       const x = s.cx + Math.cos(s.angle) * s.r;
       const z = s.cz + Math.sin(s.angle) * s.r;
       s.obj.position.set(x, SEA_LEVEL - 0.08 + Math.sin(t * 0.9 + s.phase) * 0.04, z);
@@ -299,8 +339,12 @@ export class DistantScenery {
       w.x = Math.cos(a) * d;
       w.z = Math.sin(a) * d;
       w.heading = a + Math.PI / 2;
-      w.t = 0;
-      w.blown = false;
+      // (Only in open water, from where it surfaces to where it dives: else it tries again later.)
+      if (this.byLand(w.x, w.z, 2) || this.byLand(w.x + Math.cos(w.heading) * 3, w.z + Math.sin(w.heading) * 3, 2)) w.next = 8;
+      else {
+        w.t = 0;
+        w.blown = false;
+      }
     }
     // (Placed below before it's shown: shown first, it would be drawn for a frame where it last was,
     // the first time the middle of the island, afloat on the sea.)

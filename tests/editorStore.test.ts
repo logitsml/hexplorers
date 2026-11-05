@@ -78,6 +78,60 @@ describe('the map editor', () => {
     expect(useEditor.getState().past).toHaveLength(0);
   });
 
+  it('paints nothing with the rest of a drag whose press only ended a preview', () => {
+    useEditor.setState({ preview: 7 });
+    at(0, 0);
+    at(1, 0, true);
+    expect(useEditor.getState().past).toHaveLength(0);
+    expect(terrainAt(1, 0)).not.toBe('forest');
+  });
+
+  it('lays the fog along a stroke begun on an empty cell, whatever the last stroke did, as sea under the fog', () => {
+    const hidden = (q: number, r: number) => !!useEditor.getState().map.hexes.find((h) => h.q === q && h.r === r)?.hidden;
+    useEditor.setState({ tool: { kind: 'fog' } });
+    // A tap that lifts the fog off a cell, then a stroke from off the map's cells onto them.
+    at(0, 0);
+    at(0, 0);
+    expect(hidden(0, 0)).toBe(false);
+    const empty = [-4, 0] as const;
+    expect(terrainAt(...empty)).toBeUndefined();
+    at(...empty);
+    at(-3, 0, true);
+    at(-2, 0, true);
+    expect([hidden(...empty), hidden(-3, 0), hidden(-2, 0)]).toEqual([true, true, true]);
+    expect(terrainAt(...empty)).toBe('sea');
+    // A stroke pressed on the fog lifts it all the way.
+    at(-2, 0);
+    at(-3, 0, true);
+    expect([hidden(-3, 0), hidden(-2, 0)]).toEqual([false, false]);
+  });
+
+  it('keeps the fog off the features that are seen from the start', () => {
+    useEditor.setState({ tool: { kind: 'terrain', terrain: 'lake' } });
+    at(0, 0);
+    useEditor.setState({ tool: { kind: 'fog' } });
+    at(0, 0);
+    expect(useEditor.getState().map.hexes.find((h) => h.q === 0 && h.r === 0)?.hidden).toBeUndefined();
+  });
+
+  it('leaves a hex to the deal with Dealt, turning the deal on', () => {
+    at(0, 0);
+    useEditor.setState({ tool: { kind: 'number', n: 'deal' } });
+    expect(useEditor.getState().map.deal).toBeFalsy();
+    at(0, 0);
+    expect(useEditor.getState().map.deal).toBe(true);
+  });
+
+  it('puts a harbour’s images round the middle only where they are coast too', () => {
+    // A lone hex off the middle: its images land on open sea, where no harbour may stand.
+    useEditor.setState({ map: { ...blankMap('Lone', 3, 3), hexes: [{ q: 0, r: 0, terrain: 'sea' }, { q: 1, r: 0, terrain: 'sea' }, { q: -1, r: 0, terrain: 'sea' }, { q: 0, r: 1, terrain: 'sea' }, { q: 0, r: -1, terrain: 'sea' }, { q: 1, r: -1, terrain: 'sea' }, { q: -1, r: 1, terrain: 'sea' }, { q: 2, r: 0, terrain: 'hills' }] }, symmetry: 3, tool: { kind: 'port', type: 'any' } });
+    const [x, z] = hexCenter(2, 0);
+    applyTool(x + 0.8, z);
+    const ports = useEditor.getState().map.ports;
+    expect(ports.length).toBeGreaterThan(0);
+    for (const p of ports) expect(useEditor.getState().map.hexes.find((h) => h.q === p.q && h.r === p.r)?.terrain).toBe('hills');
+  });
+
   it("starts a new step for a stroke whose first cell changed nothing, rather than joining the last press's", () => {
     at(0, 0);
     // (Off the grid: nothing painted, and the stroke carries on onto the map.)

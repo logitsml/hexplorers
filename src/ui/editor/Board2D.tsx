@@ -306,17 +306,17 @@ export function Board2D({ hidden = false }: { hidden?: boolean }) {
         <g aria-hidden>
           <AnimatePresence>
             {sea.map((h) => (
-              <motion.polygon key={key(h.q, h.r)} className="ed-sea" points={pts(corners(h.q, h.r, 0.97))} strokeWidth={Math.max(1, k * 0.03)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }} />
+              <motion.polygon key={key(h.q, h.r)} className="ed-sea" points={pts(corners(h.q, h.r, 1.005))} strokeWidth={Math.max(1, k * 0.02)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }} />
             ))}
           </AnimatePresence>
         </g>
-        {/* The beach round the land, as the flat map lays it. */}
+        {/* The shallows and the beach round the land, as the flat map lays them. */}
         <g aria-hidden>
           {land.map((h) => (
-            <polygon key={`s${key(h.q, h.r)}`} points={pts(corners(h.q, h.r, 1.16))} fill="#3a93bf" opacity="0.55" />
+            <polygon key={`s${key(h.q, h.r)}`} points={pts(corners(h.q, h.r, 1.19))} fill="#4a9bc0" opacity="0.4" />
           ))}
           {land.map((h) => (
-            <polygon key={`b${key(h.q, h.r)}`} points={pts(corners(h.q, h.r, 1.07))} fill="#e7d4a2" />
+            <polygon key={`b${key(h.q, h.r)}`} points={pts(corners(h.q, h.r, 1.08))} fill="#e7d4a2" />
           ))}
         </g>
         <AnimatePresence>

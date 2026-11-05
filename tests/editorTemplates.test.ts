@@ -17,7 +17,8 @@ const hash = (x: unknown) => createHash('sha1').update(JSON.stringify(x)).digest
 /** [map, dealt board] hashes of the templates as they were before the grid grew. */
 const PINNED: Record<string, [string, string]> = {
   classic: ['4186d5966f2b', '94e09b782ef2'],
-  random: ['dad63e8b81ee', '2cd10e24ce29'],
+  // (Since harbours may stand on random land whose bag deals no sea, as the game allows: it had none.)
+  random: ['9432ce8d026c', '2183eaebd3f5'],
   small: ['283b8868903b', '20a033d4d279'],
   big: ['f9cb80060b51', '2e7f9e54b0cb'],
   twins: ['7044a7ac07ce', '10c55df9db00'],

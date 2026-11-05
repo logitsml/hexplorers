@@ -143,7 +143,7 @@ export function Library({ onClose }: { onClose: () => void }) {
                   </span>
                 </button>
                 <div className="ed-card-actions">
-                  <button className="ed-link" onClick={() => (storeMap(newMapId(), { ...m.map, name: `${m.map.name} (copy)`.slice(0, 40) }), refresh())} aria-label={`Copy “${m.map.name}”`}>
+                  <button className="ed-link" onClick={() => (storeMap(newMapId(), { ...m.map, name: `${m.map.name} (copy)`.slice(0, 40) }) || useEditor.getState().say('The copy wasn’t kept: the browser’s storage is full or blocked', true), refresh())} aria-label={`Copy “${m.map.name}”`}>
                     <LineIcon name="copy" size={14} />
                     Copy
                   </button>

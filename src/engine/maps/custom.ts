@@ -852,17 +852,21 @@ function centroid(map: CustomMap): [number, number] {
   return [q / map.hexes.length, r / map.hexes.length];
 }
 
-/** Every coastal side of the face-up fixed land, clockwise round the map's centroid (where harbours may go). */
+/**
+ * Every coastal side of the face-up land, clockwise round the map's centroid (where harbours may
+ * go): random land counts as land unless the bag may deal it as sea (structuralProblems' rule).
+ */
 export function coastSides(map: CustomMap): { q: number; r: number; side: number }[] {
   const at = new Map(map.hexes.map((h) => [key(h.q, h.r), h]));
-  const fixedLand = (t?: CellTerrain) => !!t && t !== 'random' && isLand(t as Terrain);
+  const seaInBag = (bagOf(map).sea ?? 0) > 0;
+  const land = (t?: CellTerrain) => !!t && (t === 'random' ? !seaInBag : isLand(t as Terrain));
   const [cx, cz] = hexCenter(...centroid(map));
   const out: { q: number; r: number; side: number; a: number }[] = [];
   for (const h of map.hexes) {
-    if (!fixedLand(h.terrain) || h.hidden) continue;
+    if (!land(h.terrain) || h.hidden) continue;
     for (let side = 0; side < 6; side++) {
       const n = at.get(key(h.q + SIDE_DIRS[side][0], h.r + SIDE_DIRS[side][1]));
-      if (n && (fixedLand(n.terrain) || n.terrain === 'random')) continue;
+      if (n && land(n.terrain)) continue;
       const [x, z] = hexCenter(h.q, h.r);
       const [nx, nz] = hexCenter(h.q + SIDE_DIRS[side][0], h.r + SIDE_DIRS[side][1]);
       out.push({ q: h.q, r: h.r, side, a: Math.atan2((z + nz) / 2 - cz, (x + nx) / 2 - cx) });
