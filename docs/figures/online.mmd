@@ -1,0 +1,11 @@
+flowchart LR
+  browser["Browsers<br>the game"] <-->|"WebSocket<br>actions, views"| room
+  browser -->|"HTTP /api"| worker
+  subgraph cf["Cloudflare"]
+    direction TB
+    worker["Worker<br>static site, /api,<br>link previews"]
+    room["Room<br>Durable Object:<br>game, dice, bots, clocks"]
+    d1[("D1<br>accounts, friends,<br>replays, push")]
+    worker --> room
+    worker --> d1
+  end

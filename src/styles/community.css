@@ -1,0 +1,147 @@
+/* The community sections of the Multiplayer page (friends, notifications), tier badges and Fair
+   winds marks on the harbour's seats, and a rated game's changes on the results card. Loaded with
+   their chunks, after ui.css and online.css, whose tokens, buttons, fields and parchment it builds
+   on. Phones first (a 375 px phone, a foldable phone's 382 × 580 cover screen); a highlight is a
+   ring or a fill, never a lift; the colours stay calm. */
+
+.community .way-lead {
+  margin: -4px 0 0;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+
+.community .page-note {
+  margin: 0;
+  /* (Under a section's heading and its left-aligned controls, a note keeps their edge.) */
+  text-align: start;
+  text-wrap: pretty;
+}
+
+/* Something that didn't come, said in a muted rust (never an alarm), with the way to try again. */
+.way-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--sp-2);
+  font-weight: 600;
+  color: #7a3a30 !important;
+}
+
+.way-error .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  min-height: 36px;
+}
+
+/* (A section's own button stays in its section: on a phone only the page's first way aboard keeps
+   to the foot of the screen, not one more for every section scrolled past.) */
+.community .title-actions {
+  position: static;
+  margin: 2px 0 0;
+  padding: 0;
+  background: none;
+}
+
+/* ---------------------------------------------------------------- tiers and Fair winds */
+
+.tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px 2px;
+  border-radius: var(--r-pill);
+  font: 700 11px/1.35 var(--font-body);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  background: rgb(var(--wash) / 0.1);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.tier-badge b {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* (The higher tiers in the game's own gold and wood, muted: a rank, not an alarm.) */
+.tier-badge.tier-navigator,
+.tier-badge.tier-captain {
+  background: rgba(58, 104, 120, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(58, 104, 120, 0.3);
+}
+
+.tier-badge.tier-commodore,
+.tier-badge.tier-admiral {
+  color: #4a3410;
+  background: rgba(196, 149, 59, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(196, 149, 59, 0.45);
+}
+
+.tier-badge.tier-placement {
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.fair-winds {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #3f6b4a;
+}
+
+.fair-winds::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+.fair-winds.low {
+  color: var(--ink-faint);
+}
+
+.seat-standing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 2px;
+}
+
+/* ---------------------------------------------------------------- the harbour and the results */
+
+.rating-changes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.rating-change {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rating-change.mine {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* A finger's room for the small link in a row (Try again) on a touch screen. */
+@media (pointer: coarse) {
+  .way-error .link-btn {
+    min-height: 44px;
+  }
+}

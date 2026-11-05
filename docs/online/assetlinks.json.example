@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "xyz.hexplorers.app",
+      "sha256_cert_fingerprints": [
+        "<the app signing key's SHA-256, from Play Console: Test and release, App integrity, App signing>",
+        "<the upload key's SHA-256, from: keytool -list -v -keystore android.keystore -alias android>"
+      ]
+    }
+  }
+]

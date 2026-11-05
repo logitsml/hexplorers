@@ -1,0 +1,19 @@
+node_modules
+dist/
+# The art pipeline's full-size originals and logs (scripts/art/).
+art-src/
+# Online play's local data (rooms, guests, replays, the generated secrets) and the built server.
+.data/
+dist-server/
+.DS_Store
+.playwright-mcp/
+# Local reference documents.
+md/
+pdf/
+# Local tool notes and settings.
+AGENTS.md
+.claude/
+shots/
+
+# wrangler dev's local state
+.wrangler/

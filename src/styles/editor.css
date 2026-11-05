@@ -1,0 +1,1851 @@
+/* ------------------------------------------------------------------ the map editor
+   The board fills the window; the bar, the dock and the check float over it. Wide screens: the dock
+   is a rail on the left and the check a panel on the right. Phones: the dock runs along the bottom
+   (the palette's tools in two rows above its tabs) and the check is a sheet over it. */
+
+.map-editor {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-hud);
+  /* How long the flat map takes to dissolve into the island, or gather over it. */
+  --ed-melt: 0.42s;
+  --ed-gap: 10px;
+  /* The side edges, clear of a notch or the home bar on a phone on its side. */
+  --ed-l: max(var(--ed-gap), env(safe-area-inset-left));
+  --ed-r: max(var(--ed-gap), env(safe-area-inset-right));
+  --ed-top-h: 52px;
+  --ed-dock-w: 268px;
+  --ed-check-w: 300px;
+  --ed-board-top: calc(var(--ed-top-h) + var(--ed-gap) * 2);
+  --ed-board-left: calc(var(--ed-dock-w) + var(--ed-gap) + var(--ed-l));
+  --ed-board-right: var(--ed-r);
+  --ed-board-bottom: 0px;
+}
+
+.map-editor.check-open {
+  --ed-board-right: calc(var(--ed-check-w) + var(--ed-gap) + var(--ed-r));
+}
+
+.map-editor > * {
+  pointer-events: auto;
+}
+
+/* The flat view's sea, under everything: it dissolves into the real sea as the map lifts into 3D,
+   and gathers again as the island is pressed back into a map (see View3D). */
+.map-editor::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 55% 50%, #1675a6 0%, #0e5d89 45%, #0a4c72 100%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--ed-melt) ease;
+}
+.map-editor.flat::before {
+  opacity: 1;
+}
+
+/* (Its shade at the edges comes and goes with the island.) */
+.map-editor::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(0, 20, 30, 0.25), rgba(0, 20, 30, 0) 24%, rgba(0, 20, 30, 0) 78%, rgba(0, 20, 30, 0.2));
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity var(--ed-melt) ease;
+}
+.map-editor.deep::after {
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------------ the bar */
+
+.ed-top {
+  position: absolute;
+  top: var(--ed-gap);
+  left: var(--ed-l);
+  right: var(--ed-r);
+  height: var(--ed-top-h);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  /* (Concentric: the bar's 14px corners round its 38px buttons' 8px, 7px in.) */
+  padding: 0 7px;
+  z-index: 3;
+}
+
+/* Groups in the bar: the map's own (Maps, Save) and playing it (Test play, Play), set further apart
+   from their neighbours than their buttons are from each other. */
+.ed-top-group {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.ed-top-group + .ed-grow,
+.ed-play-group {
+  margin-inline-start: var(--sp-2);
+}
+
+.ed-top .ed-narrow {
+  display: none;
+}
+
+.ed-save:disabled .line-icon {
+  color: #2f5d24;
+}
+
+.ed-name {
+  font: inherit;
+  font-family: 'Fraunces Variable', Georgia, serif;
+  font-weight: 700;
+  font-size: var(--fs-xl);
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  padding: 4px 8px;
+  width: min(240px, 24vw);
+  min-width: 0;
+  text-overflow: ellipsis;
+  transition-property: border-color, background-color;
+  transition-duration: var(--dur-fast);
+}
+
+.ed-name:focus,
+.ed-name:hover {
+  border-color: var(--line);
+  background: var(--surface);
+  outline: none;
+}
+
+.ed-grow {
+  flex: 1;
+}
+
+.ed-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  -webkit-tap-highlight-color: transparent;
+  transition-property: transform, background-color, color, box-shadow;
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease-out);
+}
+
+@media (hover: hover) {
+  .ed-icon-btn:hover:not(:disabled) {
+    background: var(--surface-hover);
+  }
+}
+
+.ed-icon-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* (Disabled: the button stays solid over the sea, only its icon fades, so it still reads as the
+   same control and not as a hole in the cluster.) */
+.ed-icon-btn:disabled {
+  color: rgba(93, 74, 53, 0.4);
+  cursor: default;
+}
+
+/* A bare icon in the bar: no surface until the pointer is over it. */
+.ed-icon-btn.ed-plain {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  .ed-icon-btn.ed-plain:hover {
+    background: var(--surface-hover);
+    border-color: var(--line-soft);
+  }
+}
+
+.ed-icon-btn[aria-expanded='true'] {
+  background: var(--surface-hover);
+  border-color: var(--line);
+}
+
+/* Redo is undo's icon turned round. */
+.ed-flip {
+  display: inline-grid;
+  transform: scaleX(-1);
+}
+
+.ed-icon-btn.on {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(196, 149, 59, 0.35), var(--shadow-sm);
+}
+
+/* The verdict: green when ready, amber with warnings, and plain parchment while something is left
+   to fix (a new map opens with some: nothing has gone wrong, so no red). */
+.ed-status {
+  min-height: 34px;
+  padding: 0 14px 0 11px;
+  border-radius: var(--r-pill);
+  border: 1px solid;
+  font: inherit;
+  font-weight: 800;
+  font-size: var(--fs-md);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition-property: transform, background-color, border-color, color;
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease-out);
+}
+
+.ed-status .line-icon {
+  flex: none;
+}
+
+.ed-status:active {
+  transform: scale(0.96);
+}
+
+.ed-status.ok {
+  background: #e3efd7;
+  border-color: #8db07a;
+  color: #2f5d24;
+}
+
+.ed-status.warn {
+  background: #f6ead0;
+  border-color: var(--gold);
+  color: #5a3f12;
+}
+
+.ed-status.bad {
+  background: #efe4cc;
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.ed-test {
+  position: relative;
+  overflow: hidden;
+}
+
+.ed-test > span {
+  position: relative;
+}
+
+.ed-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  min-width: 200px;
+  padding: 6px;
+  gap: 2px;
+  z-index: 4;
+  transform-origin: top right;
+}
+
+.ed-menu button {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  border: 0;
+  background: none;
+  text-align: start;
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ed-menu button .line-icon {
+  flex: none;
+  color: var(--ink-soft);
+}
+
+.ed-menu button:hover:not(:disabled) {
+  background: var(--surface);
+}
+
+.ed-menu button:is(:disabled, [aria-disabled='true']) {
+  opacity: 0.5;
+}
+
+.ed-menu hr {
+  margin: var(--sp-1) var(--sp-2);
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.ed-menu button.gold {
+  background: linear-gradient(180deg, #f3d27c 0%, #d39d3c 100%);
+  color: #3b2509;
+}
+
+.ed-menu button.gold .line-icon {
+  color: inherit;
+}
+
+/* ------------------------------------------------------------------ the floating cluster */
+
+.ed-float {
+  position: absolute;
+  top: calc(var(--ed-board-top) + 4px);
+  right: calc(var(--ed-board-right) + 8px);
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  z-index: 2;
+  transition: right 0.3s ease;
+}
+
+/* (Over the sea, the cluster's buttons are opaque: a see-through surface turned blue.) */
+.ed-float > .ed-icon-btn {
+  background: var(--parchment);
+}
+
+/* Undo and redo share one surface, cut like the view's switch beside them (11px round 8px, 3px in). */
+.ed-pair,
+.ed-view,
+.ed-zoom {
+  background: var(--parchment);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+.ed-pair {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 11px;
+}
+
+.ed-pair .ed-icon-btn {
+  width: 34px;
+  height: 34px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  .ed-pair .ed-icon-btn:hover:not(:disabled) {
+    background: var(--surface-hover);
+  }
+}
+
+.ed-view {
+  min-width: 92px;
+}
+
+/* ------------------------------------------------------------------ the dock */
+
+.ed-dock {
+  position: absolute;
+  top: var(--ed-board-top);
+  left: var(--ed-l);
+  bottom: var(--ed-gap);
+  width: var(--ed-dock-w);
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+  overflow: hidden;
+}
+
+.ed-cats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.ed-cats button {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 7px 2px 6px;
+  border: 0;
+  background: none;
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.ed-cats button > * {
+  position: relative;
+}
+
+.ed-cats button.on {
+  color: var(--ink);
+}
+
+.ed-cats button:not(.on):hover {
+  color: var(--ink);
+}
+
+.ed-cats button .ed-cat-pill {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-sm);
+  background: #fffaf0;
+  box-shadow: var(--shadow-sm);
+}
+
+.ed-palette {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* (Each row its own height: a row that scrolls sideways mustn't be squashed to fit.) */
+  grid-auto-rows: max-content;
+  padding: var(--sp-3);
+  display: grid;
+  align-content: start;
+  /* (Between the palette's groups: its tools, its settings, its whole-map edits.) */
+  gap: var(--sp-4);
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+/* (More below the edge: see moreBelow in Dock.tsx.) */
+.ed-palette[data-more] {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), rgba(0, 0, 0, 0.15));
+}
+
+.ed-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.ed-chip-btn {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  /* (From the top, so a row's pictures line up when one of its tools has a second line: Fog's
+     Sea Lanes beside Home.) */
+  align-content: start;
+  gap: 2px;
+  min-height: 66px;
+  padding: 10px 2px 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .ed-chip-btn:hover {
+    border-color: var(--line);
+  }
+}
+
+.ed-chip-btn:active {
+  transform: scale(0.96);
+}
+
+.ed-chip-btn > :not(.ed-ring) {
+  position: relative;
+}
+
+.ed-ring {
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--r-md);
+  border: 2px solid var(--gold);
+  background: #fffaf0;
+  box-shadow: 0 0 0 3px rgba(196, 149, 59, 0.25), var(--shadow-sm);
+}
+
+.ed-pic {
+  display: grid;
+  place-items: center;
+  height: 32px;
+}
+
+.ed-label {
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.ed-tag {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.ed-erase {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #ead9bd;
+  color: var(--ink-soft);
+}
+
+.ed-disc {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #bfa877;
+  background: #f7efdc;
+  font-family: 'Fraunces Variable', Georgia, serif;
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1;
+  padding-top: 3px;
+  color: var(--ink);
+}
+
+.ed-disc i {
+  font-style: normal;
+  font-size: 7px;
+  letter-spacing: -1px;
+  line-height: 0.6;
+}
+
+.ed-disc.red {
+  color: #b8302a;
+}
+
+.ed-disc.owed,
+.ed-badge.owed {
+  border-style: dashed;
+  color: #8a6c45;
+  font-size: 17px;
+  padding-top: 0;
+}
+
+.ed-badge {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #8a6c45;
+  background: #f4e9cf;
+  font-family: 'Fraunces Variable', Georgia, serif;
+  font-weight: 800;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+/* A category's edits to the whole map: a column of quiet buttons under a small heading. */
+.ed-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sp-2);
+}
+
+.ed-sub,
+.ed-field > span {
+  grid-column: 1 / -1;
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.btn.ed-act {
+  justify-content: flex-start;
+  min-height: 36px;
+  text-align: start;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.btn.ed-act .line-icon {
+  color: var(--ink-soft);
+}
+
+.ed-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 36px;
+  font-weight: 700;
+  font-size: var(--fs-md);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ed-switch input {
+  width: 18px;
+  height: 18px;
+  accent-color: #b98a2c;
+}
+
+.ed-help {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.ed-field {
+  display: grid;
+  gap: 6px;
+}
+
+.seg.ed-mini button {
+  padding: 5px 8px;
+  font-size: 12.5px;
+}
+
+/* The bag of random tiles. */
+.ed-bag {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: rgba(255, 250, 238, 0.5);
+}
+
+.ed-bag-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  margin-bottom: 4px;
+  font-size: var(--fs-sm);
+}
+
+.ed-bag-head :is(.ok, .bad) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ed-bag-head .ok {
+  color: #2f5d24;
+}
+
+.ed-bag-head .bad {
+  color: #7a5212;
+}
+
+.ed-bag .stepper b {
+  font-variant-numeric: tabular-nums;
+}
+
+.ed-bag .stepper button,
+.ed-check .stepper button {
+  display: inline-grid;
+  place-items: center;
+}
+
+/* The canvas: its width and height in hexes, each stepped, with a cross between. */
+.ed-size {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.ed-size .stepper b {
+  min-width: 34px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ed-size .stepper button {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+}
+
+.ed-times {
+  color: var(--ink-faint);
+  font-weight: 800;
+}
+
+.ed-bag-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+
+.ed-bag-row svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ------------------------------------------------------------------ links */
+
+.ed-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: #6d4b17;
+  text-decoration: underline;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.ed-link .line-icon {
+  flex: none;
+}
+
+.ed-link.bad {
+  color: var(--bad);
+}
+
+/* ------------------------------------------------------------------ the check */
+
+.ed-check-wrap {
+  position: absolute;
+  top: var(--ed-board-top);
+  right: var(--ed-r);
+  bottom: var(--ed-gap);
+  width: var(--ed-check-w);
+  z-index: 2;
+}
+
+.ed-check {
+  height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  grid-template-columns: minmax(0, 1fr);
+  overscroll-behavior: contain;
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  display: grid;
+  align-content: start;
+  /* (Between its sections: the verdict, the game it's checked for, the island's figures.) */
+  gap: var(--sp-5);
+  scrollbar-width: thin;
+}
+
+.ed-check header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: calc(var(--sp-1) - var(--sp-5));
+}
+
+.ed-check h3 {
+  flex: 1;
+  margin: 0;
+  font-family: 'Fraunces Variable', Georgia, serif;
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+/* A section: its small heading, then its rows, closer together than the sections are. */
+.ed-sect {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.ed-check h4,
+.ed-library h3 {
+  font-family: 'Fraunces Variable', Georgia, serif;
+  font-size: var(--fs-md);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+.ed-sheet-close {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border: 0;
+  background: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background-color var(--dur-fast);
+}
+
+@media (hover: hover) {
+  .ed-sheet-close:hover {
+    background: var(--surface);
+    color: var(--ink);
+  }
+}
+
+/* The verdict in a sentence: its icon and words carry it, the tint only backs them. */
+.ed-verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  font-weight: 800;
+  font-size: var(--fs-base);
+  line-height: 1.3;
+}
+
+.ed-verdict .line-icon {
+  flex: none;
+  margin-top: 1px;
+}
+
+.ed-verdict.ok {
+  background: rgba(70, 130, 60, 0.14);
+  color: #2f5d24;
+}
+
+.ed-verdict.bad {
+  background: rgba(43, 33, 24, 0.06);
+  color: var(--ink);
+}
+
+.ed-issues {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.ed-issues li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3) var(--sp-2) 9px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-md);
+  line-height: 1.35;
+  text-wrap: pretty;
+  border-left: 3px solid;
+  /* (Its marked edge straight: rounded with the rest, the 3px edge thinned to a crescent at each end.) */
+  border-start-start-radius: 3px;
+  border-end-start-radius: 3px;
+}
+
+.ed-issues li > .line-icon {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* A problem's way to its fix, on its own line under the words. */
+.ed-fix {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 800;
+  font-size: var(--fs-sm);
+  color: #6d4b17;
+  text-decoration: underline;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* (What's left to fix in plain ink, as the chip above says it: told from the warnings' amber and
+   the notes' blue, without a red.) */
+.ed-issues li.bad {
+  background: rgba(43, 33, 24, 0.06);
+  border-color: var(--ink-faint);
+  color: var(--ink);
+}
+
+.ed-issues li.warn {
+  background: rgba(196, 149, 59, 0.14);
+  border-color: var(--gold);
+  color: #5a3f12;
+}
+
+.ed-issues li.note {
+  background: rgba(70, 120, 150, 0.1);
+  border-color: #6d8ea3;
+  color: #2c4656;
+}
+
+/* A setting's row: its name at the start, its control at the end. */
+.ed-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: 36px;
+  font-weight: 700;
+  font-size: var(--fs-md);
+}
+
+.ed-line .seg {
+  min-width: 112px;
+}
+
+.ed-points {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.ed-points .stepper b {
+  font-variant-numeric: tabular-nums;
+}
+
+.ed-with {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+  font-size: var(--fs-md);
+}
+
+.ed-with-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ed-with-chips button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition-property: background-color, color, border-color;
+  transition-duration: var(--dur-fast);
+}
+
+.ed-with-chips button.on {
+  background: #fffaf0;
+  border-color: var(--gold);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.ed-figures {
+  margin: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.ed-figures div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--fs-md);
+}
+
+.ed-figures dt {
+  color: var(--ink-soft);
+}
+
+.ed-figures dd {
+  margin: 0;
+  font-weight: 800;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.ed-prod {
+  display: grid;
+  gap: 3px;
+  margin-top: var(--sp-2);
+}
+
+.ed-prod-row {
+  display: grid;
+  grid-template-columns: 18px 1fr 22px;
+  gap: 6px;
+  align-items: center;
+  font-size: var(--fs-sm);
+}
+
+.ed-bar {
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(120, 88, 48, 0.15);
+  overflow: hidden;
+}
+
+.ed-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #d39d3c, #f0c85e);
+}
+
+.ed-prod-row b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ the flat board */
+
+.ed-board2d {
+  position: absolute;
+  top: var(--ed-board-top);
+  left: var(--ed-board-left);
+  right: var(--ed-board-right);
+  bottom: var(--ed-board-bottom);
+  overflow: hidden;
+  touch-action: none;
+  cursor: crosshair;
+  transition:
+    right 0.3s ease,
+    opacity var(--ed-melt) ease;
+}
+.ed-board2d.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ed-board2d.tool-port,
+.ed-board2d.tool-number,
+.ed-board2d.tool-robber,
+.ed-board2d.tool-corsair,
+.ed-board2d.tool-home,
+.ed-board2d.tool-ground,
+.ed-board2d.tool-well,
+.ed-board2d.tool-river {
+  cursor: pointer;
+}
+
+.ed-svg {
+  position: absolute;
+  inset: 0;
+}
+
+.ed-grid polygon {
+  fill: rgba(255, 255, 255, 0.025);
+  stroke: rgba(255, 255, 255, 0.28);
+  stroke-dasharray: 3 4;
+}
+
+.ed-axes line {
+  stroke: rgba(255, 243, 176, 0.35);
+  stroke-dasharray: 6 6;
+}
+
+.ed-sea {
+  fill: rgba(190, 230, 245, 0.16);
+  stroke: rgba(225, 245, 252, 0.55);
+}
+
+.ed-aim {
+  fill: rgba(255, 243, 176, 0.18);
+  stroke: #fff3b0;
+}
+
+.ed-aim.ghost {
+  fill: rgba(255, 243, 176, 0.08);
+  stroke-dasharray: 4 4;
+  opacity: 0.8;
+}
+
+.ed-aim.erase {
+  fill: rgba(168, 50, 43, 0.22);
+  stroke: #ffb3a6;
+}
+
+.ed-aim.fog {
+  fill: rgba(255, 255, 255, 0.25);
+  stroke: #ffffff;
+}
+
+.ed-aim-side {
+  stroke: #fff3b0;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(255, 240, 160, 0.9));
+}
+
+.ed-aim-side.ghost {
+  opacity: 0.55;
+}
+
+.ed-fog-veil {
+  fill: rgba(232, 240, 244, 0.62);
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-dasharray: 5 4;
+}
+
+.ed-river path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ed-river .bank {
+  stroke: #d7e9f1;
+  opacity: 0.85;
+}
+
+.ed-river .water {
+  stroke: #3b8fc4;
+}
+
+.ed-river .spring {
+  fill: #3b8fc4;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.ed-river.drawing .water {
+  stroke: #59b4ea;
+  animation: ed-flow 0.8s linear infinite;
+  stroke-dasharray: 10 6;
+}
+
+@keyframes ed-flow {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+.ed-bob {
+  animation: ed-bob 2.6s ease-in-out infinite;
+  transform-box: view-box;
+}
+
+@keyframes ed-bob {
+  50% {
+    transform: translateY(2px) rotate(-2deg);
+  }
+}
+
+.ed-flag {
+  animation: ed-wave 1.8s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+
+@keyframes ed-wave {
+  50% {
+    transform: scaleX(0.82) skewY(4deg);
+  }
+}
+
+.ed-ripple {
+  fill: none;
+  stroke: #e8f7fc;
+  stroke-width: 3;
+  animation: ed-ripple 0.7s ease-out both;
+  pointer-events: none;
+}
+
+@keyframes ed-ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(0.75);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+
+:root[data-motion='reduce'] .ed-ripple,
+:root[data-motion='reduce'] .ed-bob,
+:root[data-motion='reduce'] .ed-flag,
+:root[data-motion='reduce'] .ed-river.drawing .water {
+  animation: none;
+}
+
+:root[data-motion='reduce'] .ed-ripple {
+  opacity: 0;
+}
+
+/* Zoom: three small buttons in the board's lower right. */
+/* Zoom: one column of three in the board's lower right, on the same surface as the history's pair. */
+.ed-zoom {
+  position: absolute;
+  right: 10px;
+  bottom: 12px;
+  display: grid;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 11px;
+}
+
+.ed-zoom button {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition-property: transform, background-color;
+  transition-duration: var(--dur-fast);
+}
+
+@media (hover: hover) {
+  .ed-zoom button:hover:not(:disabled) {
+    background: var(--surface-hover);
+  }
+}
+
+.ed-zoom button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.ed-zoom button:disabled {
+  color: rgba(93, 74, 53, 0.4);
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------ notes, hints, preview */
+
+.ed-hint {
+  position: absolute;
+  left: calc((var(--ed-board-left) + 100% - var(--ed-board-right)) / 2);
+  bottom: 14px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  background: var(--glass-solid);
+  color: #f6ecd7;
+  font-size: var(--fs-md);
+  white-space: nowrap;
+  pointer-events: none !important;
+  z-index: 1;
+  max-width: calc(100% - var(--ed-board-left) - var(--ed-board-right) - 24px);
+}
+
+/* The board's room in the 3D view (unseen): measured to frame the island in it. */
+.ed-board-area {
+  position: absolute;
+  top: var(--ed-board-top);
+  left: var(--ed-board-left);
+  right: var(--ed-board-right);
+  bottom: var(--ed-board-bottom);
+  visibility: hidden;
+  pointer-events: none !important;
+}
+
+/* The 3D view's first showing, while the draft's shaders are built: a word in the board's middle. */
+.ed-raising {
+  position: absolute;
+  left: calc((var(--ed-board-left) + 100% - var(--ed-board-right)) / 2);
+  top: calc((var(--ed-board-top) + 100% - var(--ed-board-bottom)) / 2);
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: var(--r-pill);
+  background: var(--glass-solid);
+  color: #f6ecd7;
+  font-size: var(--fs-md);
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none !important;
+}
+
+.ed-note {
+  position: absolute;
+  left: var(--ed-board-left);
+  right: var(--ed-board-right);
+  margin-inline: auto;
+  width: fit-content;
+  top: calc(var(--ed-board-top) + 54px);
+  padding: 9px 15px;
+  border-radius: var(--r-pill);
+  background: var(--glass-solid);
+  color: #f6ecd7;
+  font-weight: 700;
+  font-size: var(--fs-md);
+  box-shadow: var(--shadow-sm);
+  pointer-events: none !important;
+  z-index: 5;
+  max-width: min(520px, calc(100vw - 32px));
+  text-align: center;
+}
+
+/* A refusal (a harbour that can't go there, a save that failed): the same glass with an amber
+   edge, not a red one. */
+.ed-note.bad {
+  box-shadow: inset 0 0 0 1.5px rgba(232, 195, 106, 0.75), var(--shadow-sm);
+}
+
+.ed-preview {
+  position: absolute;
+  left: var(--ed-board-left);
+  right: var(--ed-board-right);
+  margin-inline: auto;
+  width: fit-content;
+  bottom: 56px;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px 6px 6px var(--sp-4);
+  border-radius: var(--r-pill);
+  background: var(--glass-solid);
+  color: #f6ecd7;
+  font-weight: 700;
+  font-size: var(--fs-md);
+  z-index: 3;
+  white-space: nowrap;
+}
+
+.ed-curtain {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 24, 34, 0.35);
+  z-index: 6;
+}
+
+/* ------------------------------------------------------------------ the library */
+
+.ed-library-back {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 20, 28, 0.45);
+  z-index: 8;
+}
+
+.ed-library {
+  width: min(880px, calc(100vw - 32px));
+  max-height: calc(100dvh - 60px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+}
+
+.ed-library header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.ed-library header .ed-close {
+  margin-inline-start: var(--sp-1);
+}
+
+.ed-library h2 {
+  flex: 1;
+  margin: 0;
+  font-family: 'Fraunces Variable', Georgia, serif;
+}
+
+.ed-library h3 {
+  margin: var(--sp-6) 0 var(--sp-3);
+}
+
+.ed-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.ed-card {
+  display: grid;
+  justify-items: center;
+  /* (From the top: a row's names line up whether their notes take one line or two.) */
+  align-content: start;
+  gap: 3px;
+  padding: var(--sp-3) var(--sp-2);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: center;
+  text-wrap: balance;
+  transition-property: transform, border-color;
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease-out);
+}
+
+@media (hover: hover) {
+  button.ed-card:hover,
+  .ed-card:has(.ed-card-open:hover) {
+    border-color: var(--gold);
+  }
+}
+
+button.ed-card:active {
+  transform: scale(0.96);
+}
+
+.ed-card.current {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(196, 149, 59, 0.35);
+}
+
+.ed-card b {
+  font-size: var(--fs-base);
+}
+
+.ed-card span {
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+}
+
+.ed-card.stored {
+  cursor: default;
+}
+
+.ed-card-open {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  padding: 0;
+}
+
+.ed-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-1) var(--sp-3);
+  margin-top: var(--sp-1);
+}
+
+/* No maps kept yet: what goes here, and keeping this one the first. */
+.ed-empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px dashed var(--line);
+  border-radius: var(--r-md);
+  color: var(--ink-soft);
+  font-size: var(--fs-md);
+}
+
+.ed-empty p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------------ phones */
+
+@media (max-width: 760px) {
+  .map-editor {
+    --ed-gap: 6px;
+    --ed-top-h: 48px;
+    /* (Room for two rows of tools and the brush, or the row's buttons, under the tabs.) */
+    --ed-dock-h: 256px;
+    --ed-board-top: calc(var(--ed-top-h) + var(--ed-gap));
+    --ed-board-left: 0px;
+    --ed-board-right: 0px;
+    --ed-board-bottom: var(--ed-dock-h);
+  }
+  .map-editor.check-open {
+    --ed-board-right: 0px;
+  }
+  .ed-top {
+    padding: 0 4px;
+    gap: 4px;
+  }
+  .ed-wide {
+    display: none;
+  }
+  .ed-top .ed-narrow {
+    display: inline-grid;
+  }
+  .ed-name {
+    flex: 1;
+    width: auto;
+    /* (16px: smaller, and iOS zooms the page in on focus.) */
+    font-size: 16px;
+  }
+  .ed-grow {
+    display: none;
+  }
+  .ed-status {
+    padding: 0 10px;
+    font-size: var(--fs-sm);
+  }
+  /* The cluster stands down the right edge, clear of the thumb. */
+  .ed-float {
+    top: calc(var(--ed-board-top) + 8px);
+    right: max(8px, env(safe-area-inset-right));
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  .ed-float .ed-view,
+  .ed-float .ed-pair {
+    min-width: 0;
+    flex-direction: column;
+  }
+  /* (Each half still a finger wide.) */
+  .ed-float .ed-view button {
+    min-width: 40px;
+  }
+  /* The dock along the bottom: the palette's tools in rows, the tabs under the thumb. */
+  .ed-dock {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: var(--ed-dock-h);
+    flex-direction: column-reverse;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* (Each tab at least as wide as its name, so Expansions and Isles & fog keep to one line.) */
+  .ed-cats {
+    grid-template-columns: repeat(6, minmax(max-content, 1fr));
+    border-bottom: 0;
+    border-top: 1px solid var(--line-soft);
+    padding: 4px 6px 6px;
+    gap: 2px;
+  }
+  .ed-cats button {
+    padding: 6px 0 5px;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+  .ed-palette {
+    padding: var(--sp-2) 10px 6px;
+    gap: var(--sp-2);
+  }
+  /* (A setting's name beside its choices, and the whole-map edits two to a row under no heading:
+     the dock is short.) */
+  .ed-field {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: var(--sp-3);
+  }
+  .ed-field > span {
+    grid-column: auto;
+    min-width: 4.5em;
+  }
+  .ed-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ed-sub {
+    display: none;
+  }
+  /* (A strip to swipe hid half the land, the robber with it: the tools wrap instead, as many to a
+     row as Row in Dock.tsx says, so a category's tools are all in sight.) */
+  .ed-row {
+    grid-template-columns: repeat(var(--per-row, 5), minmax(0, 1fr));
+    gap: 6px;
+  }
+  .ed-chip-btn {
+    min-height: 56px;
+    padding: 4px 2px;
+  }
+  .btn.ed-act {
+    padding-inline: 10px;
+  }
+  .ed-help,
+  .ed-zoom {
+    display: none;
+  }
+  /* The hint over the board's foot, just above the dock (on a phone tall enough: see below), out
+     of the way while a note, a deal's preview or the check is up. */
+  .ed-hint {
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--ed-dock-h) + 12px);
+    width: fit-content;
+    margin-inline: auto;
+    transform: none;
+    white-space: normal;
+    text-align: center;
+  }
+  .map-editor:is(.check-open, :has(.ed-note, .ed-preview)) .ed-hint {
+    visibility: hidden;
+  }
+  /* The check rises as a sheet over the dock. */
+  .ed-check-wrap {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: auto;
+    z-index: 4;
+  }
+  .ed-check {
+    height: auto;
+    max-height: 72dvh;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+  .ed-check::before {
+    content: '';
+    justify-self: center;
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line-strong);
+  }
+  .ed-preview {
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--ed-dock-h) + 10px);
+    white-space: normal;
+    width: auto;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: 16px;
+    padding: 8px;
+    text-align: center;
+  }
+  .ed-note {
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: calc(var(--ed-dock-h) + 12px);
+  }
+  .ed-library-back {
+    place-items: end center;
+  }
+  .ed-library {
+    width: 100vw;
+    box-sizing: border-box;
+    max-height: 86dvh;
+    border-radius: 18px 18px 0 0;
+    padding: 12px 12px calc(16px + env(safe-area-inset-bottom));
+  }
+  .ed-cards {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
+
+/* A narrow phone: six named tabs don't fit (at 320px they ran off the edge), so only the open one
+   keeps its name beside its icon; the others are their icons, named for the screen reader. */
+@media (max-width: 520px) {
+  .ed-cats {
+    display: flex;
+  }
+  .ed-cats button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .ed-cats button.on {
+    flex: 0 0 auto;
+    grid-auto-flow: column;
+    align-items: center;
+    gap: 6px;
+    padding-inline: var(--sp-3);
+  }
+  .ed-cats button:not(.on) span:not(.ed-cat-pill) {
+    display: none;
+  }
+}
+
+/* The narrowest phones (320px): the tools a little closer and their names a step smaller, so
+   Mountains keeps its last letters. */
+@media (max-width: 360px) {
+  .ed-row {
+    gap: 4px;
+  }
+  .ed-chip-btn {
+    padding-inline: 0;
+  }
+  .ed-label {
+    font-size: var(--fs-2xs);
+  }
+}
+
+@media (max-width: 760px) and (max-height: 699px) {
+  .ed-hint {
+    display: none;
+  }
+}
+
+/* Landscape phones: the dock goes back to a slim rail, so the board keeps its height. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .map-editor {
+    --ed-dock-w: 220px;
+    --ed-check-w: 260px;
+    --ed-top-h: 44px;
+    --ed-gap: 6px;
+  }
+  .ed-cats {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  /* (The tabs' icons alone: the lit tab's pill stays.) */
+  .ed-cats span:not(.ed-cat-pill) {
+    display: none;
+  }
+  .ed-chip-btn {
+    min-height: 54px;
+  }
+  .ed-hint,
+  .ed-help {
+    display: none;
+  }
+}
+
+/* (A phone on its side is under the phones' width too: the dock stays a rail down the left rather than a sheet
+   along the bottom, which would leave the board a strip.) */
+@media (max-width: 760px) and (max-height: 520px) and (orientation: landscape) {
+  .map-editor {
+    --ed-dock-h: 0px;
+    --ed-board-top: calc(var(--ed-top-h) + var(--ed-gap) * 2);
+    --ed-board-left: calc(var(--ed-dock-w) + var(--ed-gap) + var(--ed-l));
+    --ed-board-bottom: 0px;
+  }
+  .ed-dock {
+    top: var(--ed-board-top);
+    left: var(--ed-l);
+    right: auto;
+    bottom: var(--ed-gap);
+    width: var(--ed-dock-w);
+    height: auto;
+    flex-direction: column;
+    border-radius: var(--radius);
+    padding-bottom: 0;
+  }
+  /* (The tabs lead the rail: their rule falls below them, not above. The preview and note clear the rail.) */
+  .ed-cats {
+    border-top: 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .ed-preview {
+    left: calc(var(--ed-board-left) + 12px);
+    bottom: 10px;
+  }
+  .ed-note {
+    left: calc(var(--ed-board-left) + 12px);
+    bottom: 12px;
+  }
+}
+
+/* With a mouse, the bar's buttons, name and verdict stand as tall as its icons (38px). */
+@media (pointer: fine) {
+  .ed-top :is(.btn, .ed-name, .ed-status) {
+    min-height: 38px;
+  }
+}
+
+/* On a touch screen everything pressed is a finger's size (44px): the map's name and the tool tabs,
+   the top bar's buttons and the verdict, the view's switch, the icons, the zoom's, the check's,
+   the palette's, the switch's whole row, and the library's buttons and links. On a phone on its
+   side the tabs stand in two rows of three rather than six slivers, and the bar stands taller
+   round its buttons. */
+@media (pointer: coarse) {
+  .ed-top .ed-name,
+  .ed-cats button,
+  .ed-top .btn,
+  .ed-status,
+  .ed-actions .btn,
+  .ed-with-chips button,
+  .ed-switch,
+  .ed-library header .btn,
+  .ed-card-actions .ed-link,
+  .ed-fix {
+    min-height: 44px;
+  }
+  .ed-fix {
+    margin-top: 0;
+  }
+  .ed-view button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .ed-library header .ed-close {
+    min-width: 44px;
+  }
+  .ed-card-actions .ed-link {
+    padding-inline: 8px;
+  }
+  .ed-icon-btn,
+  .ed-pair .ed-icon-btn,
+  .ed-zoom button,
+  .ed-sheet-close,
+  .ed-size .stepper button,
+  .ed-check .stepper button {
+    width: 44px;
+    height: 44px;
+  }
+  .ed-with-chips {
+    gap: 6px;
+  }
+  .ed-with-chips button {
+    padding-inline: 12px;
+  }
+  .ed-switch input {
+    width: 22px;
+    height: 22px;
+  }
+}
+@media (pointer: coarse) and (max-height: 520px) and (orientation: landscape) {
+  .map-editor {
+    --ed-top-h: 52px;
+  }
+  .ed-cats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+/* A short wide touch screen (a foldable phone open in Safari, 951×585): the rail's tools a little shorter,
+   so under the finger-sized switch and buttons a category's last button stays in sight. */
+@media (pointer: coarse) and (min-width: 761px) and (min-height: 521px) and (max-height: 660px) {
+  .ed-palette {
+    gap: 8px;
+  }
+  .ed-chip-btn {
+    min-height: 58px;
+    padding-block: 4px;
+  }
+}

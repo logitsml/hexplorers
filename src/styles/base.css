@@ -1,0 +1,78 @@
+html, body { margin: 0; height: 100%; overflow: hidden; background: #1d5995 radial-gradient(130% 100% at 50% 42%, #2a6db0 0%, #1d5995 52%, #143f6e 100%) fixed; overscroll-behavior: none; }
+/* No double-tap zoom or tap flash; no image callout on a long press. */
+html { touch-action: manipulation; -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+#root img, #scene { -webkit-touch-callout: none; -webkit-user-drag: none; }
+/* (It fills the fixed box rather than 100vh, which in Safari is the window with its bars drawn away,
+   80 to 100 px taller than what shows. The canvas, the camera and the map's layout all take this
+   one box: see app/mapFit.ts.) */
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+#root { position: fixed; inset: 0; pointer-events: none; }
+
+/* The strips Safari takes its bars' colours from (see app/chromeTint.ts): fixed along each edge,
+   full length and 20 px deep (Safari reads 12, X's in-app browser 20), above everything, taking no
+   pointer. Safari reads a strip's background-color value, not its pixels, but only reads it again
+   when the strip repaints: so each paints, faintly (opacity 0.12, just over the 0.1 below which
+   Safari passes a layer by), fading towards the screen, and a new colour repaints it. Phones only
+   (index.html marks one by its screen, a touch screen with a short side of 700 px or less,
+   a foldable phone open included): the iPad and the Mac read a fixed edge once and then hold it,
+   which would lock their bars to the loading screen's blue; without strips they follow the
+   page's own background. */
+:root.phone .chrome-edge {
+  display: block;
+}
+
+.chrome-edge {
+  --edge-tint: #1d5995;
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: none;
+  background-color: var(--edge-tint);
+  opacity: 0.12;
+  transition: background-color 0.8s ease;
+}
+
+.chrome-edge.top {
+  mask-image: linear-gradient(to bottom, #000, transparent);
+}
+
+.chrome-edge.bottom {
+  mask-image: linear-gradient(to top, #000, transparent);
+}
+
+.chrome-edge.left {
+  mask-image: linear-gradient(to right, #000, transparent);
+}
+
+.chrome-edge.right {
+  mask-image: linear-gradient(to left, #000, transparent);
+}
+
+.chrome-edge.top,
+.chrome-edge.bottom {
+  left: 0;
+  right: 0;
+  height: 20px;
+}
+
+.chrome-edge.top {
+  top: 0;
+}
+
+.chrome-edge.bottom {
+  bottom: 0;
+}
+
+.chrome-edge.left,
+.chrome-edge.right {
+  top: 0;
+  bottom: 0;
+  width: 20px;
+}
+
+.chrome-edge.left {
+  left: 0;
+}
+
+.chrome-edge.right {
+  right: 0;
+}

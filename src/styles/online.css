@@ -1,0 +1,1843 @@
+/* Online play's own look: the Multiplayer page, the harbour, the QR card and the table's online
+   overlays. Loaded with their chunk (only for online play), after ui.css, whose tokens, buttons,
+   fields and parchment it builds on. Phones first: everything here fits a 375 px phone and a
+   foldable phone's 382 × 580 cover screen. */
+
+/* ---------------------------------------------------------------- the Multiplayer page */
+
+.online-form {
+  gap: var(--sp-4);
+  /* (Never wider than the card: on a phone the code box and the chips give way first.) */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* One step of the page at a time: the two ways aboard, or the one chosen. */
+.online-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-4);
+}
+
+/* (Focused by the page as the step opens, for a screen reader's place: no ring for that.) */
+.online-step:focus {
+  outline: none;
+}
+
+/* The two ways aboard, cards like the menu's: a seal, a name and a note, and a chevron to go. */
+.online-ways {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.online-way-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--sp-3);
+  width: 100%;
+  min-height: 68px;
+  padding: var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-3);
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  font: inherit;
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    box-shadow 0.2s var(--ease-out),
+    scale 0.15s var(--ease-out);
+}
+
+.online-way-card .menu-label {
+  font-size: 19px;
+  white-space: normal;
+}
+
+.online-way-card.primary .menu-seal {
+  background: linear-gradient(180deg, #f3d27c, #d6a640);
+  color: #4a2f12;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 0 0 2.5px rgb(var(--wash) / 0.3);
+}
+
+@media (hover: hover) {
+  .online-way-card:hover {
+    background: var(--surface-hover);
+    box-shadow:
+      var(--shadow-sm),
+      0 0 0 2px var(--pc);
+  }
+
+  .online-way-card:hover .menu-chevron {
+    opacity: 1;
+  }
+}
+
+.online-way-card:focus-visible .menu-chevron {
+  opacity: 1;
+}
+
+.online-way-card:active {
+  scale: 0.98;
+}
+
+:root[data-motion='reduce'] .online-way-card:active {
+  scale: none;
+}
+
+/* The page's further sections (friends, notifications), below the two ways. */
+.online-sections {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-4);
+}
+
+.online-sections:empty {
+  display: none;
+}
+
+/* Joining: the code, its box a size to type into, and a word on where it's found. */
+.online-join {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-2);
+}
+
+.online-join .link-btn {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  margin: var(--sp-2) 0 0;
+}
+
+/* The page keeps one height through its steps and as its sections arrive (the window's, up to a
+   laptop's), so the card grows from the menu once and nothing under your finger moves after. */
+@media not ((max-width: 700px) or (max-height: 500px) or ((pointer: coarse) and (max-width: 960px) and (max-height: 960px))) {
+  .title-card.multi-page {
+    height: min(calc(100dvh - 24px), 820px);
+  }
+}
+
+.online-join .code-row .btn {
+  min-height: 52px;
+}
+
+.form .online-join input.code-input {
+  min-height: 52px;
+}
+
+.page-note.start {
+  margin: 0;
+  text-align: start;
+}
+
+.online-way {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.online-way h3 {
+  margin: 0;
+  font: 600 19px/1.15 var(--font-display);
+  color: var(--ink);
+}
+
+.online-way .title-actions {
+  margin-top: 4px;
+}
+
+.online-way .link-btn {
+  justify-self: start;
+  min-height: 36px;
+  margin: 0;
+}
+
+.code-row {
+  display: flex;
+  gap: 8px;
+}
+
+.form input.code-input {
+  flex: 1;
+  min-width: 0;
+  font: 400 24px/1 'Lilita One', var(--font-display);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  padding: 8px 12px;
+}
+
+.form input.code-input::placeholder {
+  font: 600 16px var(--font-body);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--ink-faint);
+}
+
+.code-row .btn {
+  min-width: 84px;
+  justify-content: center;
+}
+
+/* (Join's arrow trails its word: the step in is on its far side.) */
+.code-row .btn > .line-icon:last-child {
+  margin-inline: 0 -3px;
+}
+
+.page-note.bad {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- the harbour */
+
+.harbour {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* The harbour is longer than a laptop's window and scrolls in its card: its paper scrolls with it,
+   as a dialog's and a phone's pages do (ui.css), rather than an overlay one screenful tall that
+   rides off with the text and leaves a paler band below. */
+:root:not([data-contrast='more']) .harbour.parchment {
+  background:
+    var(--paper-soft, none) 0 0 / 320px 320px repeat local,
+    radial-gradient(120% 90% at 30% 10%, rgba(255, 252, 240, 0.85), rgba(255, 252, 240, 0) 60%),
+    linear-gradient(180deg, var(--parchment) 0%, var(--parchment-2) 100%);
+}
+
+:root:not([data-contrast='more']) .harbour.parchment::after {
+  display: none;
+}
+
+.harbour .page-head {
+  margin-bottom: 0;
+}
+
+.harbour-wait {
+  margin: 28px 0;
+}
+
+/* Wide where there's room: the crew beside the voyage, both under the code. */
+.harbour.wide {
+  width: min(1040px, calc(100vw - 32px));
+}
+
+.harbour .page-head h2 {
+  display: grid;
+  line-height: 1.1;
+}
+
+.harbour-whose {
+  font: 600 13px/1.3 var(--font-body);
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+}
+
+.harbour .page-head .link-pill {
+  margin-left: auto;
+}
+
+/* Leave, asked once: the button says what it will do, in the page's own ink (no alarm). */
+.harbour .back-btn.armed {
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1.5px var(--wood-2);
+}
+
+.harbour-grid {
+  display: grid;
+  gap: var(--sp-6);
+  text-align: start;
+}
+
+@media (min-width: 900px) {
+  .harbour-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.harbour-col {
+  display: grid;
+  gap: var(--sp-3);
+  align-content: start;
+  min-width: 0;
+}
+
+.harbour-h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font: 600 18px/1.2 var(--font-display);
+  color: var(--ink);
+}
+
+.harbour-h small {
+  font: 600 13px/1.2 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+
+/* The voyage as the host set it, read out for everyone else: two columns of label and value. */
+.voyage-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3) var(--sp-4);
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: rgb(var(--wash) / 0.06);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.voyage-summary div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.voyage-summary dt {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}
+
+.voyage-summary dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* What the table waits for, beside the one thing to do about it. */
+.harbour .harbour-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2) var(--sp-4);
+}
+
+/* Where the title's pages are sheets (ui.css), the harbour is one too, the screen's whole width. */
+@media (max-width: 700px), (max-height: 500px), (pointer: coarse) and (max-width: 960px) and (max-height: 960px) {
+  .harbour.wide {
+    width: 100%;
+  }
+}
+
+@media (pointer: coarse) and (min-width: 560px) and (max-width: 960px) and (min-height: 501px) and (max-height: 960px) {
+  .harbour.wide {
+    width: calc(100vw - 32px);
+  }
+}
+
+/* (On a phone the title's large buttons stack their icon over the label, to share a row; the
+   harbour's one button has the row to itself, so its icon stays beside its word.) */
+.harbour .harbour-bar .harbour-go {
+  flex-direction: row;
+  gap: var(--sp-2);
+}
+
+.harbour-status {
+  flex: 1 1 240px;
+  margin: 0;
+  text-align: start;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-wrap: pretty;
+}
+
+.twin-choice .title-actions {
+  flex-wrap: wrap;
+}
+
+/* The invite strip: the code big enough to read across a table, and the ways to pass it on. */
+.invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2) var(--sp-6);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: rgb(var(--wash) / 0.08);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.invite-label {
+  font: 700 12px/1 var(--font-body);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.room-code {
+  font: 400 clamp(34px, 11vw, 44px)/1.05 'Lilita One', var(--font-display);
+  letter-spacing: 0.14em;
+  color: #3a2511;
+  white-space: nowrap;
+  user-select: all;
+}
+
+.invite-code {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.invite-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+}
+
+.invite-actions .btn {
+  min-height: 40px;
+}
+
+/* (How many watch from the quay, on the watchers' link.) */
+.invite-watch {
+  position: relative;
+}
+
+.invite-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font: 700 11px/18px var(--font-body);
+  font-variant-numeric: tabular-nums;
+  color: #fffaf0;
+  background: var(--wood-2);
+  pointer-events: none;
+}
+
+.seats {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--sp-2);
+}
+
+/* A seat: the face in its colour, the name and how they stand, and what can be done with it. The
+   seat of the one looking rings in their colour (no lift: a highlight, not a button pressed). */
+.seat-card {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 60px;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.seat-card.open {
+  background: rgb(var(--wash) / 0.06);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  border: 0;
+}
+
+.seat-card.mine {
+  box-shadow: var(--shadow-sm), 0 0 0 2px var(--pc);
+}
+
+.seat-face {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--pc);
+}
+
+.seat-face .face {
+  font-size: 17px;
+}
+
+.open-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 1.5px dashed var(--line-strong);
+  background: none;
+}
+
+.seat-text {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.seat-text b {
+  font: 600 16px/1.2 var(--font-display);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.seat-text small {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+
+.seat-card.ready .seat-text small {
+  color: #2f6b3b;
+}
+
+.host-tag {
+  margin-left: 6px;
+  padding: 1px 6px 2px;
+  border-radius: 999px;
+  font: 700 11px/1.3 var(--font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+  color: #fffaf0;
+  background: var(--wood-2);
+}
+
+.seat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+.seat-actions .btn.small {
+  min-height: 40px;
+}
+
+/* Someone else's "⋯" (SeatMenu's own button) the same size as the host's menu button beside the
+   other seats; where the host's menu holds it, its button stays out of sight and the menu opens it. */
+.seat-actions .seat-menu-btn {
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.seat-safety.hidden {
+  display: none;
+}
+
+/* The host's ways with a seat, in a small menu under its "⋯" (radius: the menu's 12px = the items'
+   8px + its 4px padding). */
+.more-menu {
+  position: relative;
+}
+
+.seat-more {
+  color: var(--ink-soft);
+}
+
+.seat-more[aria-expanded='true'] {
+  color: var(--ink);
+  background: var(--surface-hover);
+}
+
+.more-pop {
+  position: absolute;
+  top: calc(100% + var(--sp-1));
+  right: 0;
+  z-index: 5;
+  display: grid;
+  min-width: 220px;
+  padding: var(--sp-1);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md), 0 0 0 1px var(--line-soft);
+}
+
+.more-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 40px;
+  padding: 0 var(--sp-3) 0 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 650;
+  color: var(--ink);
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s var(--ease-out);
+}
+
+.more-item > .line-icon,
+.more-tick {
+  flex: none;
+  width: 16px;
+  color: var(--ink-soft);
+}
+
+.more-item:is(:hover, :focus-visible) {
+  background: rgb(var(--wash) / 0.12);
+}
+
+#root .more-item:focus-visible {
+  outline-offset: -2px;
+}
+
+/* A group of its own (the seat's other ways after the crew's levels; the profile after a person's). */
+.more-item.divide {
+  margin-top: 5px;
+}
+
+.more-item.divide::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: var(--sp-2);
+  right: var(--sp-2);
+  height: 1px;
+  background: var(--line-soft);
+}
+
+/* Remove, asked once: in the page's own ink and ringed (no alarm). */
+.more-item.armed {
+  box-shadow: inset 0 0 0 1.5px var(--wood-2);
+}
+
+/* Here (green), the link gone (grey), or away with the crew sailing for them (amber): on a seat's face. */
+.presence {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #fbf3e0;
+  background: #3f9a52;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.presence.off {
+  background: #9a8e7e;
+}
+
+.presence.away {
+  background: #d39d3c;
+}
+
+/* (On the table's panels and chips, the dot sits on the portrait like its seat mark.) */
+.avatar .presence,
+.pchip-face .presence {
+  right: auto;
+  left: -3px;
+  bottom: -3px;
+  z-index: 2;
+}
+
+.pchip-face .presence {
+  width: 10px;
+  height: 10px;
+  border-width: 1.5px;
+}
+
+.come-aboard {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm), 0 0 0 2px var(--pc);
+}
+
+.come-aboard-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-3);
+}
+
+.come-aboard-face {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--pc);
+}
+
+.come-aboard .field,
+.my-seat .my-name {
+  display: grid;
+  gap: 5px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink-soft);
+  letter-spacing: 0.03em;
+}
+
+.my-seat .my-name input {
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: #fffbf2;
+  color: var(--ink);
+  user-select: text;
+  min-width: 0;
+}
+
+/* The pictures to choose from, smaller here than on the set-up page: a row or two beside the seats. */
+.avatar-choices.compact {
+  gap: 6px;
+}
+
+.avatar-choices.compact .avatar-choice {
+  width: 38px;
+  height: 38px;
+}
+
+.come-aboard label {
+  flex: 1;
+  display: grid;
+  gap: 5px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink-soft);
+  letter-spacing: 0.03em;
+}
+
+.come-aboard input {
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: #fffbf2;
+  color: var(--ink);
+  user-select: text;
+  min-width: 0;
+}
+
+.come-aboard .btn {
+  min-height: 42px;
+}
+
+.my-seat {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: rgb(var(--wash) / 0.06);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.my-seat .field {
+  display: grid;
+  gap: 5px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink-soft);
+  letter-spacing: 0.03em;
+}
+
+.my-seat .swatch:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.my-seat-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--sp-4);
+  margin: 0 calc(-1 * var(--sp-1));
+}
+
+.my-seat-links .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  margin: 0;
+  padding: 0 var(--sp-1);
+}
+
+.host-settings .options-body {
+  grid-template-columns: 1fr;
+  grid-auto-flow: row dense;
+  gap: var(--sp-3) var(--sp-4);
+  padding: var(--sp-3);
+}
+
+/* (Each field as tall as its own options: a neighbour's two-line choices don't stretch it.) */
+.host-settings .field {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.host-settings .seg button {
+  white-space: normal;
+  line-height: 1.2;
+}
+
+@media (min-width: 560px) {
+  .host-settings .options-body {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* (Choices too long for half the width, and the expansions, take a row of their own.) */
+  .host-settings .field.wide {
+    grid-column: 1 / -1;
+  }
+}
+
+/* The harbour's chat: a few lines over the quick words. */
+.harbour-chat {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3) var(--sp-3);
+  border-radius: var(--r-md);
+  background: rgb(var(--wash) / 0.06);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.harbour-chat .chat-lines {
+  max-height: 120px;
+  min-height: 48px;
+}
+
+.harbour-chat .chat-line {
+  align-items: baseline;
+}
+
+.chat-who {
+  flex: none;
+  font-weight: 800;
+  font-size: 13px;
+  color: color-mix(in srgb, var(--pc, var(--ink-soft)) 55%, var(--ink));
+}
+
+.harbour-chat .chat-quick {
+  margin-bottom: var(--sp-1);
+}
+
+/* (Each phrase its own width: one wrapped alone on a phone doesn't stretch across the row.) */
+.harbour-chat .chat-quick .chip-btn {
+  flex: 0 1 auto;
+}
+
+/* Ready and Set sail stay at the card's foot however long it is (a laptop's short window too, as
+   on a phone), and the room's word on what was asked shows just above them. */
+.harbour .harbour-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding-top: 22px;
+  /* (Paper from just under a short fade: the bar is two lines on a phone, and what scrolls
+     beneath mustn't show through its words.) */
+  background: linear-gradient(180deg, rgba(234, 217, 179, 0) 0, var(--parchment-2) 18px);
+}
+
+/* (On a laptop the bar spans the card and covers its padded foot, so nothing scrolls past under it.) */
+@media (min-width: 701px) and (min-height: 501px) and (not ((pointer: coarse) and (max-width: 960px) and (max-height: 960px))) {
+  .harbour .harbour-actions {
+    bottom: -24px;
+    margin: 12px -30px -24px;
+    padding: 12px 30px 24px;
+  }
+}
+
+.harbour-notices {
+  position: sticky;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  z-index: 3;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.harbour-notice {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--glass-solid);
+  color: #fff6e4;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.harbour-notice.bad {
+  background: rgba(96, 56, 34, 0.92);
+}
+
+/* --------------------------------------------------------------- the QR card */
+
+.qr-veil {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(20, 12, 4, 0.55);
+  pointer-events: auto;
+}
+
+.qr-card {
+  width: min(360px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-5) var(--sp-4);
+  text-align: center;
+}
+
+.qr-title {
+  margin: 0;
+  font: 600 16px/1.3 var(--font-display);
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+/* As large as the card allows, but never so large on a short screen that the code falls off it. */
+.qr {
+  width: min(100%, 300px, calc(100dvh - 210px));
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px var(--line-soft);
+}
+
+/* -------------------------------------------------------------- at the table */
+
+.online-hud {
+  position: fixed;
+  top: calc(var(--edge, 14px) + env(safe-area-inset-top) + 52px);
+  left: 50%;
+  translate: -50% 0;
+  z-index: var(--z-toast);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.online-hud > * {
+  pointer-events: auto;
+}
+
+/* (The table's pause pill, in this column online rather than where a solo game puts it.) */
+.online-hud .paused-pill {
+  position: static;
+  translate: none;
+}
+
+/* A phone's: one more row of its status column, under the hint and over the log's lines. */
+.online-hud.inline {
+  position: static;
+  translate: none;
+  width: auto;
+  max-width: 100%;
+  gap: 4px;
+}
+
+.link-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font: 700 14px/1.2 var(--font-body);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.link-pill.inline {
+  justify-self: center;
+  background: rgba(196, 146, 40, 0.18);
+  box-shadow: none;
+}
+
+/* (A still dot: nothing on the table's chrome pulses.) */
+.link-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #c79a4a;
+}
+
+.link-pill.offline .link-dot {
+  background: #9a8e7e;
+}
+
+.clock-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--pc);
+}
+
+.clock-who {
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.away-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  max-width: calc(100vw - 2 * var(--sp-4));
+  padding: 6px 6px 6px var(--sp-4);
+  /* (A pill on one line, and on a narrow screen, where the ask wraps over its buttons, a card whose
+     corners follow its round buttons': their 20px + its 6px padding.) */
+  border-radius: 26px;
+  font: 700 14px/1.2 var(--font-display);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.away-card > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-inline-end: var(--sp-1);
+  text-wrap: balance;
+}
+
+/* (Round buttons in a round card: their curve follows its curve.) */
+.away-card .btn,
+.offer-again .btn {
+  border-radius: 999px;
+}
+
+.table-notices {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.table-notice {
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font: 600 13.5px/1.25 var(--font-body);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+}
+
+.table-notice.bad {
+  color: var(--bad);
+}
+
+/* -------------------------------------------------------------- the table's own
+
+   Each seat's clock, Looking for / Spare and the hail sit on its panel (online/Seat.tsx); the
+   table talk's reactions and quick talk at the foot of the chat (online/Talk.tsx). Calm: the
+   seats' colours as dusk tones (--dusk, chromeTint's turnTone), hairlines rather than bands, a
+   pressed state that changes its ring or ground and never moves, nothing that pulses. */
+
+/* Under a panel's stats: the clock, what they'd trade, the hail (nothing at all when it's empty). */
+.seat-extras {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.seat-extras:empty {
+  display: none;
+}
+
+/* (Saying what you'd trade takes the panel's whole width, the portrait's column too.) */
+.player-panel .seat-extras:has(.wants-editor) {
+  grid-column: 1 / -1;
+}
+
+.seat-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 700 13px/1.2 var(--font-body);
+  color: var(--ink-soft);
+}
+
+.seat-clock .clock-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--dusk, var(--pc));
+}
+
+.seat-clock b,
+.pchip-clock b {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.seat-clock b {
+  font-size: 14px;
+}
+
+/* The last ten seconds: the figures underlined in the seat's dusk tone. A quiet change, never an alarm. */
+.seat-clock.low b,
+.pchip-clock.low b {
+  text-decoration: underline 2px var(--dusk, var(--pc));
+  text-underline-offset: 3px;
+}
+
+.seat-clock.paused b,
+.pchip-clock.paused b {
+  color: var(--ink-faint);
+}
+
+/* A phone's chip: where the thinking dots would stand, under the face and points. */
+.pchip-clock {
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  translate: -50% 0;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: var(--parchment);
+  box-shadow: 0 0 0 1px var(--line-soft);
+  font: 700 11px/1.2 var(--font-body);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.pchip-clock.low {
+  box-shadow: 0 0 0 1px var(--line-soft), inset 0 -1.5px 0 var(--pc);
+}
+
+.want-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.want-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 5px 1px 7px;
+  border-radius: 999px;
+  font: 700 11.5px/18px var(--font-body);
+  color: var(--ink-soft);
+}
+
+.want-tag.looking {
+  box-shadow: inset 0 0 0 1px var(--get-line);
+}
+
+.want-tag.spare {
+  box-shadow: inset 0 0 0 1px var(--give-line);
+}
+
+.want-card {
+  width: 16px;
+  height: 16px;
+}
+
+.chip-btn.wants-btn {
+  min-height: 28px;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+
+.wants-editor {
+  flex: 1 1 100%;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-radius: var(--r-md);
+  background: rgb(var(--wash) / 0.06);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.wants-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.wants-label {
+  flex: 1 1 100%;
+  font: 700 12px/1.2 var(--font-body);
+  color: var(--ink-soft);
+}
+
+/* (Five to a row in a panel's column; the expansions' commodities wrap onto the next.) */
+.want-pick {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  cursor: pointer;
+  opacity: 0.72;
+  transition: background 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+
+@media (hover: hover) {
+  .want-pick:hover {
+    opacity: 1;
+  }
+}
+
+.want-pick.on {
+  opacity: 1;
+  background: #fffaf0;
+}
+
+.wants-row.looking .want-pick.on {
+  box-shadow: inset 0 0 0 2px var(--get);
+}
+
+.wants-row.spare .want-pick.on {
+  box-shadow: inset 0 0 0 2px var(--give);
+}
+
+.wants-note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--ink-faint);
+}
+
+.wants-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.btn.hail-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 2px 10px;
+  font-size: 12.5px;
+}
+
+/* (On a touch screen the wishes' buttons and picks are a finger's size.) */
+@media (pointer: coarse) {
+  .chip-btn.wants-btn {
+    min-height: 40px;
+  }
+  .want-pick {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* (A 40px tall target round the small hail.) */
+.btn.hail-btn::after {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
+}
+
+.hail-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.hail-row:empty {
+  display: none;
+}
+
+.offer-again {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 3px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+}
+
+.offer-again .btn {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.offer-again-to {
+  color: var(--ink-faint);
+}
+
+.watch-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 11px 4px 9px;
+  border-radius: 999px;
+  font: 600 12.5px/1.2 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+  box-shadow: var(--shadow-sm);
+}
+
+/* The reactions, floating up from their senders over everything (but never in the way of a tap). */
+.reaction-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-toast);
+  pointer-events: none;
+}
+
+.floating-reaction {
+  position: absolute;
+  translate: -50% -50%;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--dusk, var(--ink-soft));
+  box-shadow: var(--shadow-sm), 0 0 0 1.5px var(--dusk, var(--line));
+}
+
+/* The table talk's own part online, under what has been said. */
+.online-talk {
+  display: grid;
+  gap: 6px;
+}
+
+.talk-typing {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.talk-reactions {
+  display: flex;
+  justify-content: space-between;
+  gap: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.react-btn {
+  position: relative;
+  width: 38px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.react-btn:hover,
+.react-btn:focus-visible {
+  background: rgb(var(--wash) / 0.1);
+  color: var(--ink);
+}
+
+.talk-groups {
+  display: flex;
+  gap: 4px;
+}
+
+.talk-group {
+  flex: 1 1 0;
+  min-height: 28px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: 700 12px/1.2 var(--font-body);
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.talk-group.on {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink-soft);
+}
+
+.online-talk .chat-quick {
+  margin: 0;
+}
+
+/* The trade dialog online: whom the offer goes to. */
+.offer-to {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 10px;
+}
+
+.offer-to-label {
+  font: 700 12px/1 var(--font-body);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.chip-btn.offer-to-all.on {
+  background: #fffaf0;
+  box-shadow: inset 0 0 0 2px var(--ink-soft);
+}
+
+.offer-to-face {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 2px 11px 2px 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 650 13px/1.2 var(--font-body);
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.offer-to-face .response-face {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px var(--pc);
+}
+
+.offer-to-face.on {
+  background: #fffaf0;
+  box-shadow: inset 0 0 0 2px var(--ink-soft);
+}
+
+.offer-to-name {
+  max-width: 10ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Your offer while it's out and its dialog closed: a card in the dock, a face for each answer. */
+.outgoing-offer {
+  appearance: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.oo-label {
+  font: 700 12px/1 var(--font-body);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.oo-cards {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.oo-faces {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.oo-face {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px var(--pc);
+}
+
+.oo-face.declined .face {
+  opacity: 0.5;
+}
+
+.oo-face > .rs-ico,
+.oo-face > .rs-dots {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+}
+
+.oo-face > .rs-dots {
+  margin: 0;
+  padding: 2px 3px;
+  border-radius: 6px;
+  background: var(--parchment);
+  color: var(--ink-faint);
+  box-shadow: 0 0 0 1px var(--line-soft);
+}
+
+/* (Considering is still, here: three quiet dots, not a bounce.) */
+.oo-face .rs-dots i,
+.oo-face .rs-ico {
+  animation: none;
+}
+
+.oo-face .rs-dots i {
+  width: 3px;
+  height: 3px;
+  opacity: 0.6;
+}
+
+.oo-go {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font: 700 12.5px/1.2 var(--font-body);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1.5px var(--get);
+}
+
+/* The menu online: three ways, wrapping on a phone. */
+.footer.online-menu {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+/* The results card online: its five ways on (Sail again, the replay, sharing it) wrap rather than run off the card. */
+.modal .footer.results-actions {
+  flex-wrap: wrap;
+}
+
+/* The results card online: the finish in a line and the highlights as small badges. */
+.results-note {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+  text-wrap: pretty;
+}
+
+.award-badges {
+  margin: 10px 0 2px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.award-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 5px;
+  border-radius: 999px;
+  background: rgb(var(--wash) / 0.06);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc, #888) 40%, var(--line-soft));
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.award-badge b {
+  color: var(--ink);
+}
+
+.away-summary {
+  width: min(360px, calc(100vw - 32px));
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+}
+
+.away-summary h4 {
+  margin: 0;
+  font: 600 17px/1.2 var(--font-display);
+}
+
+.away-summary ul {
+  margin: 0;
+  padding: 0 0 0 18px;
+  display: grid;
+  gap: var(--sp-1);
+  font-size: 14px;
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+
+.away-summary .btn {
+  justify-self: end;
+}
+
+/* Phones: the HUD's bar runs along the top, so the pills sit just under it. */
+@media (max-width: 700px), (max-height: 500px), (pointer: coarse) and (max-width: 960px) and (max-height: 960px) {
+  .online-hud {
+    top: calc(env(safe-area-inset-top) + 58px);
+  }
+
+  .link-pill,
+  .table-notice {
+    font-size: 13px;
+  }
+
+  .harbour .title-actions {
+    margin-top: auto;
+  }
+
+  .seat-card {
+    grid-template-columns: 36px minmax(0, 1fr);
+    grid-template-areas: 'face text' 'actions actions';
+    row-gap: 6px;
+  }
+
+  .seat-face {
+    width: 36px;
+    height: 36px;
+    grid-area: face;
+  }
+
+  .seat-text {
+    grid-area: text;
+  }
+
+  .seat-actions {
+    grid-area: actions;
+    justify-content: flex-start;
+  }
+
+  .seat-actions:empty {
+    display: none;
+  }
+
+  /* (A seat with one action, an open seat's Take seat or Add crew, keeps it beside its name.) */
+  .seat-card:has(> .seat-actions > :only-child) {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    grid-template-areas: 'face text actions';
+  }
+}
+
+/* Wide enough, a seat's actions stay on its own row's right. */
+@media (min-width: 420px) {
+  .seat-card {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-areas: none;
+  }
+
+  .seat-face,
+  .seat-text,
+  .seat-actions {
+    grid-area: auto;
+  }
+}
+
+/* -------------------------------------------------------------- an online game's replay */
+
+.replay-head:has(> .fair-badge) {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+/* (The badge on a line of its own under the title and the turn.) */
+.replay-head:has(> .fair-badge)::before {
+  content: '';
+  order: 2;
+  flex-basis: 100%;
+}
+
+.fair-badge {
+  order: 3;
+  max-width: 100%;
+  padding: 2px 8px 3px;
+  border-radius: 999px;
+  font: 700 12px/1.3 var(--font-body);
+  color: #2f6b3b;
+  background: rgba(63, 154, 82, 0.12);
+}
+
+.fair-badge::before {
+  content: '✓ ';
+}
+
+.fair-badge.unchecked {
+  color: var(--ink-faint);
+  background: rgb(var(--wash) / 0.1);
+}
+
+.fair-badge.unchecked::before {
+  content: '';
+}
+
+/* Phones: the away card a little tighter, the reactions' row a finger's size. */
+@media (max-width: 700px), (max-height: 500px), (pointer: coarse) and (max-width: 960px) and (max-height: 960px) {
+  .away-summary ul {
+    font-size: 13.5px;
+  }
+
+  .react-btn {
+    height: 40px;
+  }
+
+  .talk-group {
+    min-height: 32px;
+  }
+}
+
+/* A foldable's cover screen and other short ones: the card keeps to a few lines, and the table talk
+   to half the screen, its quick words in one row to scroll along, so the board shows under it. */
+@media (max-height: 600px) {
+  .away-summary {
+    padding: 10px 12px;
+  }
+
+  .chatpanel:has(.online-talk) {
+    max-height: min(420px, 50dvh);
+  }
+
+  .online-talk {
+    gap: 4px;
+  }
+
+  .online-talk .chat-quick {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .online-talk .chat-quick .chip-btn {
+    flex: none;
+  }
+
+  .react-btn {
+    height: 34px;
+  }
+
+  .talk-group {
+    min-height: 28px;
+  }
+
+  .online-talk .chat-note {
+    display: none;
+  }
+
+  .away-summary li:nth-child(n + 5) {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------- the Profile page */
+
+/* (The Singleplayer and Multiplayer pages' "Sailing as" row is ui.css's: the set-up page has it
+   before online play has loaded.) */
+.profile-face {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--pc);
+}
+
+.profile-who {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+
+.profile-who small {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}
+
+.profile-who b {
+  font: 600 17px/1.2 var(--font-display);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The Profile page: the face large, over the choices that make it. */
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border-radius: var(--r-md);
+  background: rgb(var(--wash) / 0.06);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.profile-hero .profile-face {
+  width: 72px;
+  height: 72px;
+  box-shadow: 0 0 0 3px var(--pc);
+}
+
+.profile-hero .profile-face .face {
+  font-size: 30px;
+}
+
+.profile-hero .profile-who b {
+  font-size: 24px;
+}

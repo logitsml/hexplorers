@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#ecdcb6" />
+    <meta name="description" content="A free 3D board game you play in your browser: explore a living island, trade with a crew of computer players and build your way to ten points. On a computer or a phone, with no sign-up." />
+    <title>Hexplorers: a 3D island board game in your browser</title>
+    <!-- The loading screen's sea, painted before the styles and scripts arrive (no white flash). -->
+    <style>html,body{margin:0;height:100%;background:#1d5995 radial-gradient(130% 100% at 50% 42%,#2a6db0 0%,#1d5995 52%,#143f6e 100%) fixed}.chrome-edge{display:none}</style>
+    <!-- A phone (by its screen, not the window: an iPad in Split View is narrow too, and an iPad
+         reads a fixed edge once and keeps it): the bars' strips are for it alone (base.css). -->
+    <script>if (matchMedia('(hover: none)').matches && Math.min(screen.width, screen.height) <= 700) document.documentElement.classList.add('phone');</script>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="canonical" href="https://hexplorers.xyz/" />
+    <script>
+      // Should the game's scripts fail to arrive (a dropped connection) or to start, say so rather
+      // than leave the page blank. (Once the loading screen is up, the game reports its own troubles.)
+      addEventListener(
+        'error',
+        function (e) {
+          var root = document.getElementById('root');
+          var url = e.target instanceof HTMLScriptElement ? e.target.src : e.target === window ? e.filename : '';
+          if ((root && root.childElementCount) || !/\/(assets|src)\//.test(url || '')) return;
+          var show = function () {
+            if (document.getElementById('load-failed')) return;
+            var box = document.createElement('div');
+            box.id = 'load-failed';
+            box.setAttribute('role', 'alert');
+            box.style.cssText = 'position: fixed; inset: 0; z-index: 1; display: grid; place-content: center; gap: 16px; padding: 24px; background: #1d5995; color: #f4f9ff; font: 18px/1.5 Georgia, serif; text-align: center';
+            box.innerHTML = '<p style="margin: 0">Hexplorers couldn’t load. Check the connection and try again.</p><p style="margin: 0"><button style="font: inherit; padding: 6px 18px; border-radius: 8px; border: 0; color: #1d5995; background: #f4f9ff; cursor: pointer" onclick="location.reload()">Try again</button></p>';
+            document.body.appendChild(box);
+          };
+          if (document.body) show();
+          else addEventListener('DOMContentLoaded', show);
+        },
+        true,
+      );
+    </script>
+    <!-- Link previews: a compact card, its picture a square thumbnail beside the text rather than a
+         banner across the chat (with summary_large_image and a wide picture, Discord drew a card most
+         of a phone's screen tall). Invitations, rooms and the watch link get cards of their own,
+         written in by the Worker (src/worker/preview.ts), which also gives this page the clip of
+         the island rising for every chat but Discord (Messages plays it in the bubble). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Hexplorers" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:url" content="https://hexplorers.xyz/" />
+    <meta property="og:title" content="Hexplorers: sail, trade and prosper on a living island" />
+    <meta property="og:description" content="Sail, trade and prosper on a 3D island against a crew of computer players. Free in your browser, on a computer or a phone, with no sign-up." />
+    <meta property="og:image" content="https://hexplorers.xyz/social/thumb.jpg?v=6" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="600" />
+    <meta property="og:image:height" content="600" />
+    <meta property="og:image:alt" content="A small island of hexagonal fields, forests and hills at golden hour, with two dice splashing into the sea beside it." />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Hexplorers: sail, trade and prosper on a living island" />
+    <meta name="twitter:description" content="Sail, trade and prosper on a 3D island against a crew of computer players. Free in your browser, on a computer or a phone, with no sign-up." />
+    <meta name="twitter:image" content="https://hexplorers.xyz/social/thumb.jpg?v=6" />
+    <meta name="twitter:image:alt" content="A small island of hexagonal fields, forests and hills at golden hour, with two dice splashing into the sea beside it." />
+    <!-- What the game is, for search engines and answer engines, which read no script and see no
+         canvas (and /llms.txt, the same in prose). -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://hexplorers.xyz/#site",
+            "name": "Hexplorers",
+            "url": "https://hexplorers.xyz/",
+            "inLanguage": "en"
+          },
+          {
+            "@type": "VideoGame",
+            "@id": "https://hexplorers.xyz/#game",
+            "name": "Hexplorers",
+            "url": "https://hexplorers.xyz/",
+            "description": "A free 3D board game that runs in the browser. You explore an island of hexagonal tiles, trade resources with a crew of computer players and build roads, houses and towns to reach ten victory points, through changing weather, nightfall and storms. It plays in 3D or on a flat map, on a computer or a phone, with no account or download.",
+            "image": "https://hexplorers.xyz/social/hero.jpg?v=5",
+            "genre": ["Board game", "Strategy", "Trading"],
+            "applicationCategory": "GameApplication",
+            "operatingSystem": "Any (runs in a web browser)",
+            "gamePlatform": ["Web browser", "Desktop", "Mobile"],
+            "playMode": ["SinglePlayer", "MultiPlayer"],
+            "isAccessibleForFree": true,
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "inLanguage": "en",
+            "trailer": {
+              "@type": "VideoObject",
+              "name": "Hexplorers: the island rises",
+              "description": "A new game of Hexplorers begins: the camera dives to the sea as the island rises out of it tile by tile, its numbers land and its harbours are built round the coast. Then it sinks back into the sea, and the camera rises to where it began.",
+              "thumbnailUrl": "https://hexplorers.xyz/social/watch.jpg?v=5",
+              "contentUrl": "https://hexplorers.xyz/social/trailer.mp4?v=5",
+              "uploadDate": "2026-11-03",
+              "duration": "PT16S",
+              "width": 1280,
+              "height": 720
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is Hexplorers?",
+                "acceptedAnswer": { "@type": "Answer", "text": "A free 3D board game you play in your browser. You explore an island of hexagonal tiles, trade resources with computer players and build roads, houses and towns until someone reaches ten victory points." }
+              },
+              {
+                "@type": "Question",
+                "name": "Is it free, and do I need an account?",
+                "acceptedAnswer": { "@type": "Answer", "text": "It is free, with no account, sign-up or download: open hexplorers.xyz and play. Your game is saved in the browser, so you can continue where you left off." }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I play on a phone?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Yes. It plays in desktop and phone browsers, in 3D or on a flat 2D map, and adjusts its graphics quality to the device." }
+              },
+              {
+                "@type": "Question",
+                "name": "Who do I play against?",
+                "acceptedAnswer": { "@type": "Answer", "text": "A crew of two or three computer players, at an easy, normal or hard level, or your friends online: host a room and share its link, or join one with its code." }
+              },
+              {
+                "@type": "Question",
+                "name": "Are there expansions or custom maps?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Yes. Optional expansions add sea lanes, guilds and garrisons, rivers, wagon trains, invasions, fisheries, oil, an almanac of events and a port captain's award, alone or mixed, and a map editor lets you draw an island of your own and play it." }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <!-- The strips Safari on a phone takes its bars' colours from, there from the first frame (see
+         src/app/chromeTint.ts; styled in base.css, hidden until then). -->
+    <div class="chrome-edge top" aria-hidden="true"></div>
+    <div class="chrome-edge bottom" aria-hidden="true"></div>
+    <div class="chrome-edge left" aria-hidden="true"></div>
+    <div class="chrome-edge right" aria-hidden="true"></div>
+    <canvas id="scene"></canvas>
+    <div id="root"></div>
+    <noscript>
+      <div style="position: fixed; inset: 0; z-index: 1; display: grid; place-items: center; padding: 24px; background: #1d5995; color: #f4f9ff; font: 18px/1.5 Georgia, serif; text-align: center">
+        <div style="max-width: 36em">
+          <h1 style="margin: 0 0 12px; font-size: 28px">Hexplorers</h1>
+          <p style="margin: 0 0 12px">A free 3D board game: explore a living island, trade with a crew of computer players and build roads, houses and towns to ten points, on a computer or a phone.</p>
+          <p style="margin: 0">It runs in your browser and needs JavaScript turned on to play.</p>
+        </div>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

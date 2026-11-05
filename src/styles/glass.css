@@ -1,0 +1,826 @@
+/* Sea Glass: the interface as clear glass over the island (Settings › Look › Interface).
+   Everything here is scoped to :root[data-look="glass"]; the parchment look is ui.css alone.
+
+   The colours are role tokens (--glass-*) that app/glassLight.ts writes from the sky: light glass with dark
+   text by day, dark glass with light text at night, every value blending with the night except the text,
+   which turns over once at deep dusk. This file maps the game's own tokens onto those roles, then gives the
+   shared surfaces (.parchment panels, buttons, tiles, segments) the glass material:
+   PANEL   the board lightly blurred, flattened and lifted behind a clear tint, a fine grain, an even rim.
+   PEBBLE  a raised piece on a panel: anything you press. More solid than the panel around it.
+   WELL    carved into a panel: where things go, what a choice slides along. */
+
+:root[data-look='glass'] {
+  /* (Fallbacks for the first frame, before glassLight.ts has written the sky's values: day glass.) */
+  --glass-fill: rgb(250 250 250 / 29%);
+  --glass-contrast: 0.25;
+  --glass-bright: 1.65;
+  --glass-pebble: rgb(253 254 254 / 96%);
+  --glass-pebble-hover: rgb(250 250 250);
+  --glass-well: rgb(232 234 234 / 90%);
+  --glass-text: #252727;
+  --glass-text-2: #3c3f40;
+  --glass-line: #d1d5d6;
+  --glass-rim: 0.22;
+  --glass-shadow: rgb(4 34 47 / 24%);
+  --glass-shadow-near: rgb(4 34 47 / 16%);
+  --glass-scrim: rgb(4 30 44 / 34%);
+  --glass-accent-subtle: rgb(221 237 239 / 88%);
+  --glass-accent-ring: #70b9c1;
+  --glass-give: #eaddcf;
+  --glass-give-strong: #e1bd92;
+  --glass-give-text: #2d251b;
+  --glass-get: #c8e9d4;
+  --glass-get-strong: #97d5b0;
+  --glass-get-text: #1e2a22;
+
+  /* The one solid colour: the main action (sea-glass teal), white on it. */
+  --glass-accent: #30646a;
+  --glass-accent-hover: #2e5459;
+  --glass-on-accent: #ffffff;
+  --glass-danger: #a15048;
+
+  /* The game's own tokens, pointed at the roles. */
+  --ink: var(--glass-text);
+  --ink-soft: var(--glass-text-2);
+  --ink-faint: var(--glass-text-2);
+  --surface: var(--glass-pebble);
+  --surface-hover: var(--glass-pebble-hover);
+  --line-soft: color-mix(in srgb, var(--glass-line) 70%, transparent);
+  --line: var(--glass-line);
+  --line-strong: var(--glass-line);
+  --gold: var(--glass-accent-ring);
+  --gold-2: var(--glass-accent-ring);
+  --owed: var(--glass-accent-ring);
+  --shadow-sm: 0 2px 6px -2px var(--glass-shadow-near), 0 1px 2px var(--glass-shadow-near);
+  --shadow-md: 0 8px 20px -10px var(--glass-shadow), 0 2px 6px -2px var(--glass-shadow-near);
+  --shadow: 0 10px 26px -12px var(--glass-shadow), 0 2px 6px -2px var(--glass-shadow-near);
+  --glass-backdrop: blur(7px) contrast(var(--glass-contrast)) brightness(var(--glass-bright)) saturate(1.8);
+  /* A fine frosted grain: light-and-dark pitting with a scatter of sparkle. */
+  --glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.7' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='discrete' tableValues='0 1'/%3E%3CfeFuncG type='discrete' tableValues='0 1'/%3E%3CfeFuncB type='discrete' tableValues='0 1'/%3E%3CfeFuncA type='table' tableValues='1 0 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='110'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='1' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 9 -6.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E");
+}
+
+/* PANEL: every paper surface becomes glass. (Isolated, so its grain's soft-light blends within it even
+   while app/frost.ts has its filter off: blending out into the HUD's layer, it made the layer a group of
+   its own, and every other panel's backdrop-filter found nothing behind it but the layer: clear glass.) */
+:root[data-look='glass'] .parchment {
+  isolation: isolate;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow);
+  color: var(--ink);
+}
+:root[data-look='glass'] .parchment::after {
+  background-image: var(--glass-grain);
+  background-size: 140px 140px, 110px 110px;
+  mix-blend-mode: soft-light;
+  opacity: calc(0.16 - 0.06 * var(--glass-dark, 0));
+  box-shadow: none;
+}
+/* (Dialogs and the title's pages carry a paper background of their own in the parchment look.) */
+:root[data-look='glass'] :is(.modal, .title-card).parchment {
+  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow);
+}
+:root[data-look='glass'] :is(.modal, .title-card).parchment::after {
+  display: block;
+}
+/* More contrast (Settings › Access): solid glass, a firm edge, no blur or grain. */
+:root[data-look='glass'][data-contrast='more'] .parchment {
+  background: color-mix(in srgb, var(--glass-pebble), var(--glass-fill) 10%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: inset 0 0 0 1.5px var(--ink), var(--shadow);
+}
+:root[data-look='glass'][data-contrast='more'] .parchment::after {
+  display: none;
+}
+
+/* PEBBLE: buttons and raised controls. */
+:root[data-look='glass'] :is(.btn, .icon-btn, .build-btn, .tile, .chip, .hchip, .res-pick, .chip-btn) {
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-look='glass'] .btn {
+  color: var(--ink);
+  background: var(--glass-pebble);
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow-sm);
+}
+:root[data-look='glass'] .btn.ghost {
+  background: var(--glass-pebble);
+  border-color: transparent;
+}
+@media (hover: hover) {
+  :root[data-look='glass'] :is(.btn, .btn.ghost, .icon-btn, .build-btn, .tile):hover:not(:disabled, [aria-disabled='true']) {
+    background: var(--glass-pebble-hover);
+    filter: none;
+  }
+  :root[data-look='glass'] .btn.gold:hover:not(:disabled, [aria-disabled='true']) {
+    background: var(--glass-accent-hover);
+  }
+}
+/* The main action: the one solid colour on screen, white on it. */
+:root[data-look='glass'] .btn.gold {
+  color: var(--glass-on-accent);
+  background: var(--glass-accent);
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12), var(--shadow-sm);
+}
+:root[data-look='glass'] .btn.ghost.warn {
+  color: var(--glass-danger);
+}
+:root[data-look='glass'] :is(.icon-btn, .build-btn) {
+  background: var(--glass-pebble);
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow-sm);
+}
+:root[data-look='glass'] :is(.tile, .hchip, .chip) {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow-sm);
+  border-color: transparent;
+}
+/* (A kind chosen in a dialog's steppers too, rather than the parchment's gold.) */
+:root[data-look='glass'] :is(.tile, .res-pick).on {
+  background: var(--glass-accent-subtle);
+  box-shadow: inset 0 0 0 2px var(--glass-accent-ring), var(--shadow-sm);
+}
+
+/* WELL: segmented controls, tab tracks and the like, carved into their panel. */
+:root[data-look='glass'] :is(.seg, .tabs) {
+  background: var(--glass-well);
+  box-shadow: inset 0 2px 5px color-mix(in srgb, var(--glass-shadow) 70%, transparent);
+}
+:root[data-look='glass'] .seg button {
+  color: var(--ink-soft);
+}
+:root[data-look='glass'] :is(.seg button.on, .seg button[aria-pressed='true'], .tabs [role='tab'][aria-selected='true']) {
+  color: var(--ink);
+  background: var(--glass-pebble);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow-sm);
+}
+:root[data-look='glass'] .tabs .tab-pill {
+  background: var(--glass-pebble);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow-sm);
+}
+
+/* Trade: what you give is amber, what you get is kelp, each with its own text shade. */
+:root[data-look='glass'] {
+  --give: var(--glass-give-text);
+  --give-soft: var(--glass-give);
+  --give-line: var(--glass-give-strong);
+  --get: var(--glass-get-text);
+  --get-soft: var(--glass-get);
+  --get-line: var(--glass-get-strong);
+}
+:root[data-look='glass'] :is(.deal-side.give, .deal-side:not(.get)) {
+  background: var(--glass-give);
+  box-shadow: inset 0 2px 5px color-mix(in srgb, var(--glass-shadow) 60%, transparent);
+}
+:root[data-look='glass'] .deal-side.get {
+  background: var(--glass-get);
+  box-shadow: inset 0 2px 5px color-mix(in srgb, var(--glass-shadow) 60%, transparent);
+}
+:root[data-look='glass'] .deal-label { color: var(--glass-give-text); }
+:root[data-look='glass'] .deal-side.get .deal-label { color: var(--glass-get-text); }
+:root[data-look='glass'] .deal-empty { color: var(--glass-give-text); }
+:root[data-look='glass'] .deal-side.get .deal-empty { color: var(--glass-get-text); }
+:root[data-look='glass'] .deal-chip { background: var(--glass-pebble); color: var(--ink); }
+:root[data-look='glass'] .tile.give.picked { background: var(--glass-give); box-shadow: inset 0 0 0 2px var(--glass-give-strong), var(--shadow-sm); color: var(--glass-give-text); }
+:root[data-look='glass'] .tile.get.picked { background: var(--glass-get); box-shadow: inset 0 0 0 2px var(--glass-get-strong), var(--shadow-sm); color: var(--glass-get-text); }
+:root[data-look='glass'] .tile-n { background: var(--glass-give-strong); color: var(--glass-give-text); }
+:root[data-look='glass'] .tile.get .tile-n { background: var(--glass-get-strong); color: var(--glass-get-text); }
+:root[data-look='glass'] .tile small,
+:root[data-look='glass'] .palette-label { color: var(--ink-soft); }
+
+/* Your turn and what's chosen: the accent's pale shade, ringed. */
+:root[data-look='glass'] .menu-card.active {
+  box-shadow: inset 0 0 0 2px var(--glass-accent-ring), var(--shadow);
+}
+
+/* Dialogs: a sea-tinted scrim, and the dialog a panel over it. */
+:root[data-look='glass'] .modal-shade {
+  background: var(--glass-scrim);
+}
+/* A contents entry of How to play, pointed at: a brighter pebble, not cream paper. */
+:root[data-look='glass'] .rules-entry:hover { background: var(--glass-pebble-hover); }
+
+/* Chips' small counts and the like keep the text colour; images get a light, cool drop shadow. */
+:root[data-look='glass'] .stack .count {
+  background: var(--glass-text);
+  color: var(--glass-fill-solid, #fafafa);
+}
+
+/* Reduced transparency: solid glass, no blur. */
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-look='glass'] .parchment {
+    background: color-mix(in srgb, var(--glass-fill), var(--glass-pebble) 70%);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+/* The WebGL fallback (app/frost.ts: no frost in the frame, and the browser's blur redone every
+   frame costs a phone as much as the island): no blur, and app/glassLight.ts makes the fill opaque.
+   (The status bar's, the top line's and whose turn it is's tint go over that fill, not over the bare sea.) */
+:root[data-backdrop='solid'] {
+  --glass-backdrop: none;
+}
+:root[data-look='glass'][data-backdrop='solid'] :is(.status-bar, .hintbar:not(.status-bar .hintbar), .cticker li, .more-pill, .dock-news, .al-chip-btn, .player-panel.active) {
+  background: color-mix(in srgb, var(--glass-accent-subtle) 46%, var(--glass-fill));
+}
+
+/* The title: the wordmark in the text colour, the menu's seals as pebbles, Continue's as the main action. */
+:root[data-look='glass'] .menu-plaque .logo {
+  color: var(--ink);
+  text-shadow: 0 1px 0 rgb(255 255 255 / calc(0.35 * (1 - var(--glass-dark, 0)))), 0 3px 10px var(--glass-shadow-near);
+}
+:root[data-look='glass'] .menu-seal {
+  background: var(--glass-pebble);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow-sm);
+}
+:root[data-look='glass'] :is(.menu-card.active .menu-seal, .page-head .menu-seal) {
+  box-shadow: inset 0 0 0 2px var(--glass-accent-ring), var(--shadow-sm);
+}
+:root[data-look='glass'] .menu-card.primary .menu-seal {
+  background: var(--glass-accent);
+  color: var(--glass-on-accent);
+  box-shadow: var(--shadow-sm);
+}
+:root[data-look='glass'] .menu-card.primary.active .menu-seal {
+  box-shadow: 0 0 0 2px var(--glass-accent-ring), var(--shadow-sm);
+}
+:root[data-look='glass'] .menu-foot {
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  color: var(--ink-soft);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow-sm);
+}
+:root[data-look='glass'] .menu-foot :is(.link-btn, kbd) {
+  color: var(--ink);
+}
+/* A card's note in the panel's ink, a touch heavier: the soft ink at 13px read faint on clear glass over the
+   moving sea. Its chevron holds 3:1 there too. */
+:root[data-look='glass'] :is(.menu-card, .online-way-card) .menu-note {
+  color: var(--ink);
+  font-weight: 500;
+}
+:root[data-look='glass'] .menu-card:not(.active) .menu-chevron {
+  opacity: 0.7;
+}
+
+/* ===== As the draft: type, corners, labels =====
+   One interface face (Google Sans Flex) set by weight; the game's Fraunces only for the wordmark, dialog
+   titles and points. Corners: 24 for panels, 28 for dialogs, 14 for pebbles and wells, 10 for what's
+   chosen inside a well; each nested corner is the one around it less the gap. */
+:root[data-look='glass'] {
+  --font-body: 'Google Sans Flex Variable', 'Google Sans', system-ui, sans-serif;
+  --font-display: 'Google Sans Flex Variable', 'Google Sans', system-ui, sans-serif;
+  --font-brand: 'Fraunces Variable', 'Iowan Old Style', Georgia, serif;
+  --radius: 24px;
+  --r-md: 14px;
+  --r-sm: 10px;
+  -webkit-font-smoothing: antialiased;
+}
+:root[data-look='glass'] .modal.parchment { border-radius: 28px; }
+:root[data-look='glass'] :is(.menu-plaque .logo, .modal h3, .vp-num, .title-card h2, .page-head h2) {
+  font-family: var(--font-brand);
+}
+:root[data-look='glass'] .menu-plaque .logo { font-weight: 750; letter-spacing: -0.015em; }
+:root[data-look='glass'] :is(.btn, .build-btn, .seg button, .tabs [role='tab'], .menu-label, .view-toggle, .section-label) {
+  font-family: var(--font-body);
+  font-weight: 650;
+}
+:root[data-look='glass'] :is(.btn, .icon-btn, .build-btn, .tile, .res-pick) { border-radius: 14px; }
+:root[data-look='glass'] :is(.seg, .tabs) { border-radius: 14px; }
+:root[data-look='glass'] :is(.seg button, .tabs [role='tab'], .tabs .tab-pill) { border-radius: 10px; }
+:root[data-look='glass'] .menu-card.parchment { border-radius: 999px; }
+:root[data-look='glass'] .menu-card.small.parchment { border-radius: 999px; }
+/* The title plate: the accent's strongest pale shade, the wordmark and tagline in its dark ones. */
+:root[data-look='glass'] .menu-plaque.parchment {
+  background: color-mix(in srgb, #a8e0e6 calc(52% + 30% * var(--glass-dark, 0)), transparent);
+}
+:root[data-look='glass'] .menu-plaque .logo { color: color-mix(in srgb, #1c292b, #f9fafa calc(var(--glass-dark, 0) * 100%)); }
+:root[data-look='glass'] .menu-plaque .menu-tagline { color: color-mix(in srgb, #2e5459, #ddedef calc(var(--glass-dark, 0) * 100%)); letter-spacing: .32em; }
+/* Section labels: plain small capitals inside the panel, no tab of their own. */
+:root[data-look='glass'] .section-label {
+  top: 10px;
+  left: 16px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+}
+/* (The hand's top leaves its label clear of a tall stack's fan, which rises 12px and tilts; the cards beside it match, so the two panels' tops line up.) */
+:root[data-look='glass'] :is(.hand, .devhand) { padding: 40px 12px 10px; }
+/* Pieces still in parchment colours elsewhere. */
+:root[data-look='glass'] .view-toggle {
+  background: var(--glass-well);
+  box-shadow: inset 0 2px 5px color-mix(in srgb, var(--glass-shadow) 70%, transparent);
+  border-radius: 14px;
+}
+:root[data-look='glass'] .mini-die {
+  background: var(--glass-pebble);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow-sm);
+  border-radius: 10px;
+}
+:root[data-look='glass'] .mini-die svg { fill: var(--ink); }
+:root[data-look='glass'] .avatar-mark {
+  background: var(--glass-pebble);
+  box-shadow: var(--shadow-sm);
+}
+
+/* The loading chart's wordmark stays white on its blue, whatever the look. */
+:root[data-look='glass'] .loader .logo {
+  color: #f4f9ff;
+  font-family: 'Lilita One', var(--font-brand);
+  font-weight: 400;
+}
+/* On the title's pages, what's chosen is ringed in the accent, not in your seat's colour. */
+:root[data-look='glass'] .title-card { --pc: var(--glass-accent-ring); }
+/* Setting sail across a title card: the accent's pale shade, not the parchment look's blue. */
+:root[data-look='glass'] .sail-fill.wash { background: color-mix(in srgb, var(--glass-accent-ring) 32%, transparent); }
+/* The sticky footer under a page's actions fades from clear glass, not paper. */
+:root[data-look='glass'] :where(.menu-page) .title-actions,
+:root[data-look='glass'] .title-actions {
+  background: linear-gradient(180deg, transparent 0%, var(--glass-fill) 40%);
+}
+/* (That fade is as clear as the page, so what scrolls under the button shows through round it. While the
+   page scrolls, the fade thickens to a frost that hides it; a page that fits keeps the clear fade.) */
+@supports (animation-timeline: scroll()) {
+  :root[data-look='glass'] .title-card .title-actions {
+    animation: glass-foot-frost linear both;
+    animation-timeline: scroll(nearest block);
+  }
+}
+@keyframes glass-foot-frost {
+  from,
+  to {
+    background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--glass-pebble) 76%, transparent) 40%);
+  }
+}
+/* What's chosen on the title's pages: the accent's pale shade, ringed, as a tile is (not cream paper). */
+:root[data-look='glass'] :is(.chips button.on, .expansion-toggles button.on) {
+  background: var(--glass-accent-subtle);
+  box-shadow: inset 0 0 0 2px var(--glass-accent-ring), var(--shadow-sm);
+}
+:root[data-look='glass'] .map-choice.on {
+  background: var(--glass-accent-subtle);
+  border-color: var(--glass-accent-ring);
+  box-shadow: inset 0 0 0 1px var(--glass-accent-ring), var(--shadow-sm);
+}
+/* (Drawing a map of your own is still a button: its dashed edge holds 3:1 on the glass.) */
+:root[data-look='glass'] .map-choice.draw { border-color: color-mix(in srgb, var(--ink-soft) 60%, transparent); }
+:root[data-look='glass'] .points-reset { color: var(--wood-2); }
+@media (hover: hover) {
+  :root[data-look='glass'] :is(.stepper, .points-row .stepper) button:hover:not(:disabled) { background: var(--glass-pebble-hover); }
+}
+
+/* ===== The game screen, as the draft lays it out =====
+   Both side columns one width; every panel 24 at the corner, its pebbles 14, what's chosen in a well 10. */
+:root[data-look='glass'] { --players-w: var(--actions-w); }
+/* A panel of the HUD that isn't .parchment (the status bar, the roll, the Almanac's face) wears the same glass. */
+:root[data-look='glass'] :is(.al-face, .errorbar, .banner-sub, .paused-pill) {
+  isolation: isolate;
+  color: var(--ink);
+  text-shadow: none;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow);
+}
+
+/* --- The status bar: whose turn it is, and the roll in a well at its right end, one panel at the top. --- */
+:root[data-look='glass'] .status-bar {
+  position: absolute;
+  top: var(--edge);
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: max-content;
+  min-width: min(320px, calc(100vw - 2 * var(--actions-w) - 4 * var(--edge)));
+  max-width: calc(100vw - 2 * var(--actions-w) - 4 * var(--edge));
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px 0 20px;
+  border-radius: 24px;
+  isolation: isolate;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--glass-accent-subtle) 46%, transparent);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow);
+  pointer-events: none;
+}
+/* Nothing to say and no roll yet: no bar. A roll alone: the bar holds just its well. */
+:root[data-look='glass'] .status-bar:not(:has(.hintbar)):has(.roll-chip.idle) { display: none; }
+:root[data-look='glass'] .status-bar:not(:has(.hintbar)) { min-width: 0; padding-left: 8px; }
+:root[data-look='glass'] .status-bar .hintbar {
+  position: static;
+  flex: 1;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  font-weight: 650;
+  font-size: 16px;
+  text-align: start;
+  color: var(--ink);
+  text-shadow: none;
+  background: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-look='glass'] .status-bar .roll-chip {
+  position: static;
+  flex: none;
+  margin: 0;
+  height: 36px;
+  gap: 6px;
+  padding: 0 12px 0 4px;
+  border-radius: 16px;
+  background: var(--glass-well);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: inset 0 2px 4px color-mix(in srgb, var(--glass-shadow) 70%, transparent);
+}
+:root[data-look='glass'] .status-bar .roll-chip.idle { display: none; }
+/* No roll beside it: the prompt alone, in the middle of the bar, its sides even (not set at the left of a wide pill). */
+:root[data-look='glass'] .status-bar:not(:has(.roll-chip:not(.idle))) { padding-right: 20px; }
+:root[data-look='glass'] .status-bar:not(:has(.roll-chip:not(.idle))) .hintbar { text-align: center; }
+:root[data-look='glass'] .roll-chip .mini-die {
+  width: 28px;
+  height: 28px;
+  border-radius: 12px;
+  background: var(--glass-pebble);
+  box-shadow: 0 2px 6px -2px var(--glass-shadow-near), 0 1px 2px var(--glass-shadow-near);
+}
+:root[data-look='glass'] .roll-chip .mini-die svg { width: 24px; height: 24px; fill: var(--ink); }
+:root[data-look='glass'] .roll-chip .mini-die + .mini-die svg { fill: var(--glass-accent); }
+:root[data-look='glass'] .roll-sum {
+  font-family: var(--font-brand);
+  font-weight: 650;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink);
+  padding-left: 2px;
+}
+:root[data-look='glass'] .roll-chip.seven .roll-sum { color: var(--glass-accent); }
+/* The Almanac's card: under the status bar, its width and corners. */
+:root[data-look='glass'] .al-chip:not(.compact) {
+  top: calc(var(--edge) + 52px + 8px);
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: 320px;
+  max-width: 320px;
+  justify-items: stretch;
+}
+:root[data-look='glass'] .al-face { padding: 8px 16px 8px 8px; border-radius: 24px; gap: 8px; }
+:root[data-look='glass'] .al-face .al-art { border-radius: 16px; }
+:root[data-look='glass'] .al-line { color: var(--ink-soft); opacity: 1; }
+
+/* --- Player cards: the face ringed in its colour, name over stats, the points stacked on the right. --- */
+:root[data-look='glass'] .player-panel {
+  grid-template-areas: 'av name vp' 'av stats vp';
+  column-gap: 12px;
+  row-gap: 4px;
+  padding: 10px 16px 10px 10px;
+}
+:root[data-look='glass'] .player-panel.has-awards { grid-template-areas: 'av name vp' 'av stats vp' 'av awards vp'; }
+:root[data-look='glass'] .player-panel .avatar {
+  background: var(--glass-pebble);
+  box-shadow: 0 0 0 2px var(--glass-pebble), 0 0 0 4px var(--pc);
+}
+:root[data-look='glass'] .player-panel .face { outline: 1px solid oklch(0 0 0 / 0.1); outline-offset: -1px; }
+:root[data-look='glass'] .player-panel .pname { font-family: var(--font-body); font-size: 14.5px; font-weight: 650; align-self: end; }
+:root[data-look='glass'] .player-panel .pstats { align-self: start; gap: 4px 10px; }
+:root[data-look='glass'] .player-panel .stat { color: var(--ink-soft); font-size: 13px; font-weight: 650; }
+:root[data-look='glass'] .player-panel .vp {
+  flex-direction: column;
+  align-items: center;
+  align-self: center;
+  gap: 2px;
+  font-family: var(--font-brand);
+  font-weight: 650;
+  font-size: 24px;
+}
+:root[data-look='glass'] .player-panel .vp small { font-size: var(--fs-2xs); letter-spacing: 0.1em; color: var(--ink-soft); }
+/* Whose turn: the accent's pale shade and a 2px ring of it, standing in place (no glow, no step aside). */
+:root[data-look='glass'] .player-panel.active {
+  translate: none;
+  background: color-mix(in srgb, var(--glass-accent-subtle) 46%, transparent);
+  box-shadow: inset 0 0 0 2px var(--glass-accent-ring), var(--shadow);
+}
+/* Awards and marks: small pebbles in the panel's own ink, a mark's tile at the left. */
+:root[data-look='glass'] .badge-award,
+:root[data-look='glass'] .badge-award.mark.bad {
+  padding: 2px 8px 2px 6px;
+  border-radius: 999px;
+  background: var(--glass-well);
+  color: var(--ink);
+  font-weight: 650;
+  box-shadow: inset 0 1px 3px color-mix(in srgb, var(--glass-shadow) 60%, transparent);
+}
+:root[data-look='glass'] .you-tag { color: var(--ink-soft); font-weight: 650; }
+
+/* --- The toolbar: a pill of round tools, the one that's on raised. --- */
+:root[data-look='glass'] .toolbar.parchment { height: 52px; align-items: center; padding: 6px; gap: 4px; border-radius: 999px; }
+:root[data-look='glass'] .toolbar .icon-btn { border-radius: 50%; color: var(--ink-soft); background: transparent; box-shadow: none; }
+:root[data-look='glass'] .toolbar .icon-btn :is(svg, .line-icon) { stroke-width: 2; }
+:root[data-look='glass'] :is(.toolbar .icon-btn.reset-view.away, .toolbar .chat-btn.on) {
+  color: var(--ink);
+  background: var(--glass-pebble);
+  box-shadow: 0 2px 6px -2px var(--glass-shadow-near), 0 1px 2px var(--glass-shadow-near);
+}
+@media (hover: hover) {
+  :root[data-look='glass'] .toolbar .icon-btn:hover { color: var(--ink); background: var(--glass-pebble-hover); box-shadow: var(--shadow-sm); }
+}
+
+/* --- The supply: its label inside, the counts in the panel's ink, a hairline under the first row. --- */
+:root[data-look='glass'] .bank { margin-top: 0; padding: 30px 10px 10px; row-gap: 6px; }
+:root[data-look='glass'] .bank-stack { color: var(--ink); font-weight: 700; font-size: 13px; }
+:root[data-look='glass'] .bank-extra { border-top: 1px solid var(--line-soft); }
+:root[data-look='glass'] .income-note { color: var(--ink-soft); }
+
+/* --- The hand: one panel, its label inside; a kind you hold none of is a narrow well with its picture faded. --- */
+/* (The gap is the fanned cards' reach, 12px past a stack, as the parchment hand's: they don't lie over the next stack.) */
+:root[data-look='glass'] .hand { gap: 14px; }
+:root[data-look='glass'] .stack .count,
+:root[data-look='glass'] .devslot .count {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+  border-radius: 999px;
+  top: -8px;
+  right: -8px;
+  font-family: var(--font-body);
+  font-weight: 750;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--glass-pebble);
+  box-shadow: 0 1px 3px var(--glass-shadow-near), 0 0 0 1px rgb(255 255 255 / 0.5);
+}
+:root[data-look='glass'] .devslot .count { top: auto; bottom: -6px; }
+:root[data-look='glass'] .stack.token .count { top: auto; bottom: 34px; right: -4px; min-width: 24px; height: 24px; font-size: 13px; }
+:root[data-look='glass'] .stack.empty {
+  width: 30px;
+  opacity: 1;
+  filter: none;
+  align-self: stretch;
+  height: auto;
+  min-height: 76px;
+  border-radius: 14px;
+  background: var(--glass-well);
+  box-shadow: inset 0 2px 5px color-mix(in srgb, var(--glass-shadow) 70%, transparent);
+}
+:root[data-look='glass'] .stack.empty .stack-slot { width: 22px; height: 22px; bottom: 10px; opacity: 0.5; filter: grayscale(0.5); }
+:root[data-look='glass'] .hand-divider { background: var(--line-soft); margin: 6px 0; }
+/* Every kind at full width (data-even): an empty kind is a card-shaped well, a card's corner, its picture faded. */
+:root[data-look='glass'] .hand-wrap[data-even] .stack.empty { width: 92px; height: 132px; min-height: 0; align-self: auto; border-radius: 12px; }
+:root[data-look='glass'] .hand-wrap[data-even] .stack.empty::before { display: none; }
+:root[data-look='glass'] .hand-wrap[data-even] .stack.empty .stack-slot { width: 38px; height: 38px; bottom: 50%; translate: -50% 50%; opacity: 0.5; filter: grayscale(0.5); }
+:root[data-look='glass'] .hand-wrap[data-even] .stack.token.empty { width: 52px; }
+:root[data-look='glass'] .hand-wrap[data-even] .stack.token.empty .stack-slot { width: 30px; height: 30px; }
+
+/* --- The build bar: tiles with their price under the name; Trade beside End turn, the one solid action. --- */
+:root[data-look='glass'] .actions.parchment { padding: 10px; gap: 8px; }
+:root[data-look='glass'] .actions .row.builds { gap: 8px; }
+:root[data-look='glass'] .build-btn { padding: 8px 2px 6px; gap: 2px; }
+:root[data-look='glass'] .build-btn .hk { display: none; }
+:root[data-look='glass'] .build-btn .lbl { font-family: var(--font-body); font-size: 11px; font-weight: 650; }
+:root[data-look='glass'] .build-btn .cost { justify-content: center; min-height: 14px; }
+:root[data-look='glass'] .build-btn .cost img { width: 13px; height: 13px; margin-right: -2px; }
+:root[data-look='glass'] .build-btn[aria-disabled='true'] { opacity: 0.45; filter: none; }
+:root[data-look='glass'] .build-btn[aria-disabled='true'] .ico img { filter: grayscale(0.4); }
+:root[data-look='glass'] .build-btn.on { background: color-mix(in srgb, var(--glass-accent-subtle) 90%, transparent); box-shadow: inset 0 0 0 2px var(--glass-accent-ring); }
+:root[data-look='glass'] .end-row.with-trade { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); }
+:root[data-look='glass'] .end-row.with-trade.with-undo { grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.5fr); }
+:root[data-look='glass'] .end-row .btn { height: 46px; border-radius: 14px; }
+:root[data-look='glass'] .end-btn {
+  color: var(--glass-on-accent);
+  background: var(--glass-accent);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  box-shadow: 0 3px 8px -3px var(--glass-shadow-near), 0 1px 2px var(--glass-shadow-near);
+}
+@media (hover: hover) {
+  :root[data-look='glass'] .end-btn:not([aria-disabled='true']):hover { background: var(--glass-accent-hover); }
+}
+:root[data-look='glass'] .end-btn[aria-disabled='true'] { opacity: 0.45; }
+/* A refusal and a banner's line: glass pills, the refusal marked by a give-coloured edge rather than parchment and gold. */
+:root[data-look='glass'] :is(.errorbar, .banner-sub) { border: 1px solid transparent; border-radius: 999px; }
+:root[data-look='glass'] .errorbar { box-shadow: inset 0 0 0 2px var(--glass-give-strong), var(--shadow); }
+
+/* --- Trade, as the draft has it: tap a side to fill it; its name on a pebble of its colour; the chosen side ringed. --- */
+:root[data-look='glass'] .deal { margin-bottom: 8px; }
+:root[data-look='glass'] .deal-side { position: relative; padding: 10px 12px 12px; gap: 8px; }
+:root[data-look='glass'] .deal-side.pickable { cursor: pointer; }
+:root[data-look='glass'] .deal-label {
+  justify-self: start;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 999px;
+  font: 650 12.5px/1.3 var(--font-body);
+  color: var(--glass-give-text);
+  background: var(--glass-give-strong);
+  box-shadow: 0 2px 6px -3px var(--glass-shadow);
+}
+:root[data-look='glass'] .deal-side.get .deal-label { color: var(--glass-get-text); background: var(--glass-get-strong); }
+:root[data-look='glass'] button.deal-label { cursor: pointer; }
+:root[data-look='glass'] .deal-side.active,
+:root[data-look='glass'] .deal-side.get.active {
+  box-shadow: inset 0 2px 5px color-mix(in srgb, var(--glass-shadow) 60%, transparent), inset 0 0 0 2px var(--glass-accent-ring);
+}
+:root[data-look='glass'] .deal-choosing {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--glass-give-text);
+}
+:root[data-look='glass'] .deal-side.get .deal-choosing { color: var(--glass-get-text); }
+:root[data-look='glass'] .deal-side:not(.active) .deal-empty { font-size: 13px; line-height: 1.35; opacity: 0.85; }
+:root[data-look='glass'] .deal-swap { border-radius: 50%; }
+:root[data-look='glass'] .palette-label { font-size: 11px; font-weight: 650; letter-spacing: 0.09em; padding-inline: 6px; }
+:root[data-look='glass'] .modal h3 { padding-inline: 6px; }
+
+/* --- The parchment tokens nothing above re-pointed: links and quiet buttons in the accent, the rare refusal in its own shade. --- */
+:root[data-look='glass'] {
+  --wood: var(--glass-link, var(--glass-accent));
+  --wood-2: var(--glass-link, var(--glass-accent));
+  --bad: var(--glass-danger);
+  --parchment: var(--glass-pebble);
+  --parchment-2: var(--glass-well);
+}
+/* The way back from a menu page: a quiet well, a pebble's corner. */
+:root[data-look='glass'] .back-btn { border-radius: 14px; background: var(--glass-well); color: var(--ink-soft); box-shadow: inset 0 2px 4px color-mix(in srgb, var(--glass-shadow) 50%, transparent); }
+@media (hover: hover) { :root[data-look='glass'] .back-btn:hover { background: var(--glass-pebble-hover); color: var(--ink); } }
+/* Scrollbars stay inside a dialog's corners: thin, the ink's soft shade on nothing. */
+:root[data-look='glass'] :is(.modal, .title-card, .entries, .dock-decisions) { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink-soft) 45%, transparent) transparent; }
+/* A player's words: a pebble ringed in their colour. */
+:root[data-look='glass'] .speech,
+:root[data-look='glass'] .speech::before { background: var(--glass-pebble); }
+:root[data-look='glass'] .speech { border-radius: 14px; }
+
+/* --- Fields: a pebble with the accent's ring when focused (not cream paper). --- */
+:root[data-look='glass'] :is(input[type='text'], input[type='search'], input:not([type]), textarea) {
+  background: var(--glass-pebble);
+  border-color: transparent;
+  border-radius: 14px;
+  /* (A field's edge holds 3:1 against the panel: the ink's soft shade, not a hairline.) */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-soft) 70%, transparent);
+  color: var(--ink);
+}
+/* The way in that's primary (Host a room): the menu's accent seal, not a gold coin. */
+:root[data-look='glass'] .online-way-card.primary .menu-seal { color: var(--glass-on-accent); background: var(--glass-accent); box-shadow: 0 3px 8px -3px var(--glass-shadow-near); }
+
+/* --- The phone's top line, its notes and the dock's chips: glass pills in the panel ink, not dark slabs. --- */
+:root[data-look='glass'] :is(.hintbar:not(.status-bar .hintbar), .cticker li, .more-pill, .dock-news, .al-chip-btn) {
+  color: var(--ink);
+  text-shadow: none;
+  background: color-mix(in srgb, var(--glass-accent-subtle) 46%, transparent);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow-sm);
+}
+:root[data-look='glass'] :is(.cticker li, .more-pill, .dock-news, .al-chip-btn) { background: var(--glass-fill); color: var(--ink-soft); }
+:root[data-look='glass'] .hintbar:not(.status-bar .hintbar) { font-family: var(--font-body); font-weight: 650; }
+/* A tile's rate and count: small pills in its top corners, the picture clear below them (the draft's 15px top). */
+:root[data-look='glass'] .palette .tile { padding: 18px 2px 8px; gap: 2px; min-height: 80px; }
+:root[data-look='glass'] .tile-badge {
+  top: 6px;
+  right: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+  background: var(--glass-well);
+  box-shadow: 0 1px 3px var(--glass-shadow-near);
+}
+:root[data-look='glass'] .tile-n { top: 6px; left: 6px; border-radius: 999px; }
+
+/* --- Polish: focus, edges, wrapping. --- */
+/* These pills are light glass: their focus ring is the ink, like every other. */
+:root[data-look='glass'] #root :is(.menu-foot :focus-visible, .more-pill:focus-visible, .al-chip-btn:focus-visible, .dock-news-btn:focus-visible) { outline-color: var(--ink); }
+/* Forced colours drop shadows: a transparent border keeps the status bar's edge. */
+:root[data-look='glass'] .status-bar { border: 1px solid transparent; }
+:root[data-look='glass'] :is(.modal h3, .title-card h2) { text-wrap: balance; }
+:root[data-look='glass'] :is(.modal .sub, .deal-empty, .al-line, .setting-note) { text-wrap: pretty; }
+:root[data-look='glass'] :is(.player-panel .vp, .roll-sum, .tile small, .tile-n, .tile-badge, .bank-stack, .stack .count) { font-variant-numeric: tabular-nums; }
+/* A side's label is its button: pressed, it sinks the same 0.96 every control does. */
+:root[data-look='glass'] button.deal-label { transition-property: scale; transition-duration: 150ms; transition-timing-function: ease-out; }
+:root[data-look='glass'] button.deal-label:active { scale: 0.96; }
+@media (prefers-reduced-motion: reduce) { :root[data-look='glass'] button.deal-label:active { scale: 1; } }
+/* The 3D / 2D switch: its knob a pebble (dark at night, so the light text on it still reads), 10 inside the well's 14. */
+:root[data-look='glass'] .vt-knob { border-radius: 10px; background: var(--glass-pebble); box-shadow: 0 2px 6px -2px var(--glass-shadow-near), 0 1px 2px var(--glass-shadow-near); }
+/* A side's name pill stays a pale-to-mid shade day and night, so its text stays the side's darkest shade. */
+:root[data-look='glass'] .deal-label { color: #2d251b; }
+:root[data-look='glass'] .deal-side.get .deal-label { color: #1e2a22; }
+/* An initial on a player's colour: the colour a shade deeper behind white, so the letter holds 4.5:1 on every colour. */
+:root[data-look='glass'] .face:not(.pale) {
+  background: radial-gradient(circle at 40% 35%, color-mix(in srgb, var(--pc) 82%, #000), color-mix(in srgb, var(--pc) 66%, #000));
+}
+
+/* --- Phones: the same status bar a size smaller (corner 18, its roll's well 12 = 18 − 6), across the top under the seats. --- */
+/* (Only the phone layout puts a status bar in .cstatus.) */
+:root[data-look='glass'] .cstatus > .status-bar {
+  position: relative;
+  top: auto;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  height: auto;
+  min-height: 44px;
+  gap: 8px;
+  /* (5 and its 1px edge: 44px tall with the roll in it, level with the buttons beside it on a phone on its side.) */
+  padding: 5px 5px 5px 16px;
+  border-radius: 18px;
+}
+:root[data-look='glass'] .cstatus > .status-bar:not(:has(.hintbar)) { padding-left: 6px; width: auto; }
+/* (The line square: the bar carries the corners. Its own 16px, round a clipped box with no padding, cut the corners
+   off its first letters.) */
+:root[data-look='glass'] .cstatus .status-bar .hintbar { min-height: 0; display: block; padding: 0; border-radius: 0; font-size: 15px; line-height: 1.25; white-space: normal; text-wrap: balance; }
+:root[data-look='glass'] .cstatus .status-bar .roll-chip { height: 32px; padding: 0 10px 0 3px; gap: 5px; border-radius: 12px; }
+:root[data-look='glass'] .cstatus .status-bar .roll-chip .mini-die { width: 26px; height: 26px; border-radius: 9px; }
+:root[data-look='glass'] .cstatus .status-bar .roll-chip .mini-die svg { width: 22px; height: 22px; }
+:root[data-look='glass'] .cstatus .status-bar .roll-sum { font-size: 18px; line-height: 1; }
+/* The dock and its Build sheet: 22 at the corner round their pebbles' 14 in an 8px margin, the hand's chips pebbles too. */
+:root[data-look='glass'] :is(.cdock-panel, .dock-pop) { border-radius: 22px; }
+:root[data-look='glass'] .hchip { border-radius: 14px; }
+/* A tile you can't build in the sheet keeps its pebble, its picture and name faded and what it lacks at full
+   strength under them (ui.css), rather than the whole tile at 45%, the sea and the 3D switch showing through it. */
+:root[data-look='glass'] .dock-pop .build-btn[aria-disabled='true'] { opacity: 1; }
+/* Build with its sheet open, and a development card you can play: chosen, as a build tile is (the pebble above
+   outranked their own marks, and the card's chip kept a parchment gold). */
+:root[data-look='glass'] :is(.crow .cbtn.on, .hchip.cards.playable) {
+  background: var(--glass-accent-subtle);
+  box-shadow: inset 0 0 0 2px var(--glass-accent-ring), var(--shadow-sm);
+}
+/* Whose turn, on a seat's chip: the accent's pale shade and its ring, as on a player's card (the seat's own colour,
+   cream for one seat, didn't show on the chip, and its glow is gone with the rest). */
+:root[data-look='glass'] .pchip.active {
+  background: var(--glass-accent-subtle);
+  box-shadow: 0 0 0 2px var(--glass-accent-ring), var(--shadow-sm);
+}
+/* A trade's sides are too narrow on a phone for "Choosing" beside their name, which it ran into: the side being
+   filled says so by its ring, and the tiles' heading under it. (Keep in step with the compact query in ui.css.) */
+@media (max-width: 700px), (max-height: 500px), (pointer: coarse) and (max-width: 960px) and (max-height: 960px) {
+  :root[data-look='glass'] .deal-choosing { display: none; }
+}
+/* The quiet washes and hairlines the parchment look tints brown (ui.css's --wash): the glass's ink instead, so a well
+   reads as a shade of the panel, not a stain. (Its own text keeps 4.5:1 on them: the soft ink deepens to the ink.) */
+:root[data-look='glass'] { --wash: 37 39 39; }
+:root[data-look='glass'] :is(.options summary, .summary-label, .summary-value, .subgroup-note, .toggle-label, .toggle-hint, .field-name, .test-pill) { color: var(--ink); }
+/* A rule a mix sets aside names what stands instead on a small wash, in the link's shade. */
+:root[data-look='glass'] .rules-instead { background: rgb(var(--wash) / 0.08); color: var(--wood-2); }
+:root[data-look='glass'] button.rules-instead { text-decoration-color: color-mix(in srgb, var(--wood-2) 40%, transparent); }
+@media (hover: hover) { :root[data-look='glass'] button.rules-instead:hover { background: rgb(var(--wash) / 0.14); } }
+
+/* --- Hints (HintTip.tsx): a pebble in the panel's ink, lifted off whatever it lies over. --- */
+:root[data-look='glass'] .hint-tip {
+  border-radius: 12px;
+  background: var(--glass-pebble);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-weight: 550;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / var(--glass-rim)), var(--shadow-md);
+}
+
+/* --- The map editor (editor.css): what's chosen and the check's tints in the glass's colours, not parchment's cream, gold and brown. --- */
+:root[data-look='glass'] .ed-cats button .ed-cat-pill { background: var(--glass-pebble); }
+:root[data-look='glass'] .ed-ring {
+  border-color: var(--glass-accent-ring);
+  background: var(--glass-accent-subtle);
+  box-shadow: var(--shadow-sm);
+}
+:root[data-look='glass'] .ed-with-chips button.on {
+  background: var(--glass-accent-subtle);
+  border-color: var(--glass-accent-ring);
+  box-shadow: inset 0 0 0 1px var(--glass-accent-ring), var(--shadow-sm);
+}
+:root[data-look='glass'] :is(.ed-icon-btn.on, .ed-card.current) { box-shadow: 0 0 0 2px color-mix(in srgb, var(--glass-accent-ring) 45%, transparent), var(--shadow-sm); }
+:root[data-look='glass'] .ed-icon-btn:disabled { color: color-mix(in srgb, var(--ink) 40%, transparent); }
+:root[data-look='glass'] :is(.ed-link, .ed-fix) { color: var(--wood-2); }
+:root[data-look='glass'] .ed-status.ok { background: var(--glass-get); border-color: var(--glass-get-strong); color: var(--glass-get-text); }
+:root[data-look='glass'] .ed-status.warn { background: var(--glass-give); border-color: var(--glass-give-strong); color: var(--glass-give-text); }
+:root[data-look='glass'] .ed-status.bad { background: var(--glass-pebble); border-color: transparent; color: var(--ink); box-shadow: var(--shadow-sm); }
+:root[data-look='glass'] .ed-verdict.ok { background: color-mix(in srgb, var(--glass-get) 70%, transparent); color: var(--glass-get-text); }
+:root[data-look='glass'] :is(.ed-verdict.bad, .ed-issues li.bad) { background: rgb(var(--wash) / 0.07); }
+:root[data-look='glass'] .ed-issues li.warn { background: color-mix(in srgb, var(--glass-give) 70%, transparent); border-color: var(--glass-give-strong); color: var(--glass-give-text); }
+:root[data-look='glass'] .ed-issues li.note { background: color-mix(in srgb, var(--glass-accent-subtle) 70%, transparent); border-color: var(--glass-accent-ring); color: var(--ink); }
+:root[data-look='glass'] .ed-bar i { background: var(--glass-accent-ring); }
+:root[data-look='glass'] .ed-switch input { accent-color: var(--glass-accent); }
+:root[data-look='glass'] .ed-erase { background: var(--glass-well); }
+:root[data-look='glass'] .ed-menu button.gold { background: var(--glass-accent); color: var(--glass-on-accent); }

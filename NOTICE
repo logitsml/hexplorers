@@ -1,0 +1,13 @@
+Hexplorers
+Copyright 2026 a9lim (@_a9lim) and treetowntree (@treetowntree)
+https://x.com/_a9lim and https://x.com/treetowntree
+
+Hexplorers is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+If you distribute Hexplorers or a work derived from it, in source or built form, including a hosted copy or a
+fork with changes, please keep this credit visible: keep this NOTICE file with the work, and show "Made by
+@_a9lim and @treetowntree" somewhere a player or reader will see it, such as an About screen or the README.
+
+Parts of Hexplorers come from other people's work and keep their own licenses: three.js, web-ocean, Material
+Symbols, Lucide and the bundled fonts. THIRD_PARTY_NOTICES.md lists each one, and the license texts are in
+LICENSES/.

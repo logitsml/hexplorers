@@ -1,0 +1,6 @@
+# Everyone is welcome, search engines and answer engines alike. (Invitations and rooms say
+# noindex themselves: link previews still need to read them, and some preview bots obey this file.)
+User-agent: *
+Allow: /
+
+Sitemap: https://hexplorers.xyz/sitemap.xml

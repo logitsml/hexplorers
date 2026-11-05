@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Not on the chart · Hexplorers</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      // The game's own links (a room to join or watch, a replay, a shared map...) are routes in the
+      // app. The Worker serves the page for them; any that reach this page instead (a static build,
+      // or a path the Worker doesn't take) are sent on to the app as /?go=<path>, which it reads on
+      // start. The fragment (a handed-off seat's token) goes along untouched: it never reaches a
+      // server either way.
+      (function () {
+        var p = location.pathname;
+        if (/^\/(r|w|replay|m|u)\/[^/]+\/?$/.test(p) || /^\/(new|multi)(\/[^/]*)?\/?$/.test(p)) {
+          location.replace('/?go=' + encodeURIComponent(p + location.search) + location.hash);
+        }
+      })();
+    </script>
+  </head>
+  <body style="margin: 0; min-height: 100vh; display: grid; place-content: center; gap: 16px; padding: 24px; box-sizing: border-box; background: #1d5995; color: #f4f9ff; font: 18px/1.5 Georgia, serif; text-align: center">
+    <p style="margin: 0">This page isn’t on the chart.</p>
+    <p style="margin: 0"><a href="/" style="color: #f4f9ff">Sail back to Hexplorers</a></p>
+  </body>
+</html>

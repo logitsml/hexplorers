@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+  <url>
+    <loc>https://hexplorers.xyz/</loc>
+    <lastmod>2026-10-25</lastmod>
+  </url>
+  <url>
+    <loc>https://hexplorers.xyz/watch</loc>
+    <lastmod>2026-11-03</lastmod>
+    <video:video>
+      <video:thumbnail_loc>https://hexplorers.xyz/social/watch.jpg?v=5</video:thumbnail_loc>
+      <video:title>Hexplorers: the island rises</video:title>
+      <video:description>A new game of Hexplorers begins: the camera dives to the sea as the island rises out of it tile by tile, its numbers land and its harbours are built round the coast. Then it sinks back into the sea, and the camera rises to where it began.</video:description>
+      <video:content_loc>https://hexplorers.xyz/social/trailer.mp4?v=5</video:content_loc>
+      <video:duration>16</video:duration>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+  </url>
+</urlset>

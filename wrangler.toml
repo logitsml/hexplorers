@@ -1,0 +1,80 @@
+# Cloudflare Worker serving the game at hexplorers.xyz (server/cloudflare/worker.ts): online play's
+# API and room sockets (one Durable Object per room, D1 for the services, R2 for replays and
+# maps), the game's own links (/r/CODE, /w/CODE, /replay/ID...) as its page with their cards, and
+# everything else through the site's own Worker (src/worker: the invitation and watch links' cards,
+# the clip) and its files. Deploy: npm run build && npx wrangler@4 deploy
+name = "exploratory"
+compatibility_date = "2026-09-01"
+main = "server/cloudflare/worker.ts"
+# permessage-deflate on WebSockets (on by default since 2023-08-15; listed so it can't be lost).
+# Don't set placement.region: it strips the extension (open issue, April 2026).
+compatibility_flags = ["web_socket_compression"]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+# The Worker runs only for these: online play's API and cards, the game's own links, the site's
+# links whose card says more than the game's own, and the clip (served in byte ranges: see
+# src/worker); everything else is a file, served without it.
+run_worker_first = [
+  "/", "/sw-off", "/join/*", "/invite", "/invite/", "/watch", "/watch/", "/social/*.mp4",
+  "/api/*", "/og/*", "/r/*", "/w/*", "/replay/*", "/m/*", "/new", "/u/*",
+]
+# A missing file is a 404 (the page 404.html), never the game's page in its place: a script of an
+# earlier release, asked for by a page opened before a deploy, must fail as a script (the page then
+# reloads, see main.tsx), not arrive as HTML. The game itself lives at / (and the Worker's links).
+not_found_handling = "404-page"
+
+[[routes]]
+pattern = "hexplorers.xyz"
+custom_domain = true
+
+# These redirect to hexplorers.xyz (REDIRECT_HOSTS below), so links made there keep working.
+[[routes]]
+pattern = "www.hexplorers.xyz"
+custom_domain = true
+
+[[routes]]
+pattern = "hexplorers.logits.ml"
+custom_domain = true
+
+[[routes]]
+pattern = "exploratory.logits.ml"
+custom_domain = true
+
+# A room per game: its state in the object's own SQLite storage, its sockets hibernatable.
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "RoomDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RoomDO"]
+
+# The services: guests, accounts, friends, ratings, replays (tables made on first use; the tables
+# of removed features are dropped then too: server/services RETIRED_SCHEMA).
+[[d1_databases]]
+binding = "DB"
+database_name = "exploratory"
+database_id = "4447f03e-93d7-4998-878e-4b4e9bf1dc95"
+
+# Replays and maps go in D1 while the account has no R2 (server/cloudflare/adapter.ts, D1Blobs).
+# Once R2 is on: `wrangler r2 bucket create exploratory-blobs`, then bind it here.
+# [[r2_buckets]]
+# binding = "BLOBS"
+# bucket_name = "exploratory-blobs"
+
+# The services' periodic work (Web Push notes held through quiet hours): scheduled(), every 5 minutes.
+# (Push stays for friends' invitations and word to someone away from a live table.)
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+PUBLIC_URL = "https://hexplorers.xyz"
+REDIRECT_HOSTS = "www.hexplorers.xyz,hexplorers.logits.ml,exploratory.logits.ml"
+VAPID_SUBJECT = "https://hexplorers.xyz"
+
+# Secrets (`wrangler secret put NAME`), never in this file:
+#   TOKEN_SECRET        32+ random bytes as hex (signs guest tokens and seat hand-offs)
+#   VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY (Web Push: P-256, base64url)
+# Off until set (docs/online/README.md): Turnstile, sign-in with Google, Apple or Discord, email.

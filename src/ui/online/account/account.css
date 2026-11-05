@@ -1,0 +1,560 @@
+/* The account, friends and safety parts of online play: the "Your account" and "Friends" sections
+   of the Multiplayer page, the sign-in sheet, profiles, and the small menu on a seat. Built on
+   ui.css's tokens and online.css's look. Phones first: everything fits a 375 px phone and a
+   foldable phone's 382 × 580 cover screen, and a sheet scrolls on its own when the screen is short.
+   Rows ring in their colour when they matter and never lift; nothing is picked out by default. */
+
+/* --------------------------------------------------------------- sections */
+
+.acct-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line-soft);
+}
+
+.acct-section h3 {
+  margin: 0;
+  font: 600 19px/1.15 var(--font-display);
+  color: var(--ink);
+}
+
+.acct-section p,
+.acct-sheet p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.acct-section .page-note,
+.acct-sheet .page-note {
+  margin: 0;
+  text-align: left;
+}
+
+.acct-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.acct-actions .link-btn,
+.acct-section > .link-btn,
+.acct-retry .link-btn {
+  margin: 0;
+  min-height: 40px;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* (A link on a line of its own: its side room pulled back so its words keep the section's edge.) */
+.acct-section > .link-btn {
+  margin-inline-start: -10px;
+}
+
+@media (pointer: coarse) {
+  .acct-actions .link-btn,
+  .acct-section > .link-btn,
+  .acct-retry .link-btn {
+    min-height: 44px;
+  }
+}
+
+.acct-retry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--sp-2);
+}
+
+/* Removing a friend, or erasing an account: a quiet rust, the same as the box around erasing,
+   never the alarm red. */
+.acct-section .btn.ghost.warn,
+.acct-sheet .btn.ghost.warn {
+  color: #8a4636;
+  border-color: rgba(138, 70, 54, 0.55);
+}
+
+/* The bin on a friend's row: a square of its own until it asks "Remove?". */
+.acct-remove:not(.armed) {
+  min-width: 36px;
+  justify-content: center;
+  padding-inline: 0;
+  color: var(--ink-soft);
+}
+
+.acct-remove > .line-icon {
+  margin-inline-start: 0;
+}
+
+.acct-note {
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  background: rgba(63, 154, 82, 0.12);
+  color: #2f5b37;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.acct-note.bad {
+  background: rgba(168, 50, 43, 0.08);
+  color: #7a3a30;
+}
+
+/* --------------------------------------------------------------- rows of people and things */
+
+.acct-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.acct-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 48px;
+  padding: var(--sp-2);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.acct-row.plain {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.acct-row.ask {
+  box-shadow: var(--shadow-sm), 0 0 0 2px var(--owed);
+}
+
+.acct-face {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--pc, #8a7a62);
+}
+
+.acct-face .face {
+  font-size: 15px;
+}
+
+.acct-face.big {
+  width: 56px;
+  height: 56px;
+}
+
+.acct-face.big .face {
+  font-size: 24px;
+}
+
+.acct-who {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+}
+
+button.acct-who {
+  cursor: pointer;
+}
+
+.acct-who b {
+  font: 600 15px/1.2 var(--font-display);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acct-who small {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acct-who small.here {
+  color: #2f6b3b;
+}
+
+.acct-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+.acct-row-actions .btn.small {
+  min-height: 36px;
+}
+
+@media (pointer: coarse) {
+  .acct-row-actions .btn.small {
+    min-height: 44px;
+  }
+
+  .acct-remove:not(.armed) {
+    min-width: 44px;
+  }
+}
+
+/* On a phone two or more actions take their own line under the name, as a seat's do (one stays
+   beside the name: a lone bin or Sign out on a line of its own read as cut adrift). */
+@media (max-width: 419px) {
+  .acct-row:has(> .acct-row-actions > :nth-child(2)) {
+    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-areas: 'face who' 'acts acts';
+    row-gap: 6px;
+  }
+
+  .acct-row.plain:has(> .acct-row-actions > :nth-child(2)) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'who' 'acts';
+  }
+
+  .acct-row:has(> .acct-row-actions > :nth-child(2)) > .acct-face {
+    grid-area: face;
+  }
+
+  .acct-row:has(> .acct-row-actions > :nth-child(2)) > .acct-who {
+    grid-area: who;
+  }
+
+  .acct-row:has(> .acct-row-actions > :nth-child(2)) > .acct-row-actions {
+    grid-area: acts;
+    justify-content: flex-start;
+  }
+
+  .acct-row > .acct-row-actions:empty {
+    display: none;
+  }
+}
+
+.acct-me {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.acct-me .acct-who b {
+  font-size: 18px;
+}
+
+.acct-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+/* --------------------------------------------------------------- forms */
+
+.acct-form {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.acct-form label,
+.acct-form .field-label {
+  display: grid;
+  gap: 5px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink-soft);
+  letter-spacing: 0.03em;
+}
+
+.acct-form input[type='text'],
+.acct-form input[type='email'],
+.acct-form select,
+.acct-inline input {
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: #fffbf2;
+  color: var(--ink);
+  user-select: text;
+}
+
+.acct-form label.check {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.acct-form label.check input {
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--wood-2);
+}
+
+.acct-form label.check small {
+  display: block;
+  font-weight: 500;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.acct-form label.check.off {
+  opacity: 0.55;
+}
+
+.acct-inline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.acct-hint {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  letter-spacing: 0;
+}
+
+.acct-bad {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #7a3a30;
+}
+
+/* Erasing: an outline in a quiet rust, not an alarm. */
+.acct-danger {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1.5px rgba(150, 70, 50, 0.45);
+}
+
+.acct-danger .btn.ghost.warn {
+  justify-self: start;
+}
+
+.acct-section details.options > summary,
+.acct-sheet details.options > summary {
+  min-height: 40px;
+}
+
+/* --------------------------------------------------------------- the sheets */
+
+.acct-veil {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  background: rgba(20, 12, 4, 0.55);
+  pointer-events: auto;
+}
+
+.acct-sheet {
+  width: min(400px, 100%);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-4) var(--sp-4);
+  text-align: left;
+}
+
+.acct-sheet h2 {
+  margin: 0;
+  font: 600 21px/1.15 var(--font-display);
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.acct-sheet .btn.large {
+  justify-content: center;
+}
+
+.acct-ways {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.acct-ways .btn {
+  justify-content: center;
+}
+
+.acct-or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-faint);
+}
+
+.acct-or::before,
+.acct-or::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--line-soft);
+}
+
+.acct-sheet-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+
+.acct-sheet-foot .link-btn {
+  margin: 0 auto 0 -10px;
+  min-height: 40px;
+}
+
+.acct-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.acct-reasons .chip-btn.on {
+  background: #fffaf0;
+  box-shadow: 0 0 0 2px var(--wood-2);
+}
+
+.acct-games {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+
+.acct-games li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.acct-games b {
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------- a seat's menu */
+
+.seat-menu-btn {
+  display: inline-grid;
+  place-items: center;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 8px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font: 700 18px/1 var(--font-body);
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+.seat-menu-btn:hover {
+  background: #fffaf0;
+  color: var(--ink);
+}
+
+/* At the table: the whole face of another person's panel opens their menu. */
+.seat-menu-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.seat-menu-hit::after {
+  content: '⋯';
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fbf3e0;
+  color: var(--ink-soft);
+  font: 700 11px/1 var(--font-body);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Block and Report on a profile: links beside the one gold way, there but quieter. */
+.acct-quiet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--sp-1);
+}
+
+.acct-actions > .acct-quiet:first-child {
+  margin-inline-start: -10px;
+}
+
+/* A seat's menu: each way a row with its icon, the words at one edge. */
+.acct-ways .btn.ghost.seat-way {
+  justify-content: flex-start;
+}
+
+.acct-games {
+  font-variant-numeric: tabular-nums;
+}
+
+/* (A morphing label's letters are inline blocks, which a link's underline doesn't reach.) */
+:is(.acct-section, .acct-sheet) .link-btn [torph-item] {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+/* The way back to the other ways, at the sheet's top left above its title. */
+.acct-sheet .sheet-back {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  margin: calc(-1 * var(--sp-2)) 0 calc(-1 * var(--sp-2)) calc(-1 * var(--sp-1));
+}

@@ -1,0 +1,23 @@
+# Hexplorers
+
+> A free 3D board game that runs in the browser. You explore a living island of hexagonal tiles, trade resources with a crew of computer players and build roads, houses and towns until someone reaches ten victory points. It plays on a computer or a phone, in 3D or on a flat map, with no account, sign-up or download.
+
+## Play
+
+- [Play Hexplorers](https://hexplorers.xyz/): opens the game at its title. Continue a saved game, or start one against two or three computer players at an easy, normal or hard level.
+- [Watch the crew play](https://hexplorers.xyz/watch): four computer players play a game while you watch, and you can start your own afterwards.
+
+## How a game goes
+
+- The island is dealt fresh each game: hexes of forest, pasture, fields, hills and mountains, each but the desert with a number from 2 to 12 (never 7).
+- Each turn the player rolls two dice. Every hex showing that number produces its resource for the houses and towns beside it.
+- Resources pay for roads, houses, towns and development cards, and can be traded with other players or with the bank and harbours.
+- A roll of 7 moves the robber, which blocks a hex and steals a card.
+- Points come from houses (1), towns (2), the longest route, the biggest army and some development cards. The first to ten wins.
+
+## More
+
+- Expansions, alone or mixed: Sea Lanes, Guilds and Garrisons, Rivers, Wagon Trains, Invasion, Fisheries, Oil, the Almanac (an event deck) and Port Captain, with preset mixes such as All Hands.
+- A map editor for drawing an island of your own, checking that it plays fairly, and playing it.
+- The island lives: weather, nightfall, storms, flocks and travellers on the roads. Graphics adjust to the device, from phones to desktops.
+- Online play with friends: host a room and share its link, or join one with its code.

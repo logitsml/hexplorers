@@ -1,0 +1,50 @@
+{
+  "name": "hexplorers",
+  "private": true,
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "description": "Hexplorers: a high-fidelity, browser-based 3D island trading and building game (WebGPU via three.js).",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "server": "vite build --ssr server/node/main.ts --outDir dist-server --emptyOutDir && node dist-server/main.js",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
+    "test": "vitest run",
+    "test:quick": "QUICK=1 vitest run",
+    "test:full": "FULL=1 vitest run",
+    "test:watch": "vitest",
+    "sim": "vitest run tests/simulation.test.ts",
+    "smoke": "node scripts/checks/smoke.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/google-sans-flex": "^5.3.2",
+    "@fontsource/alegreya-sans": "^5.3.0",
+    "@fontsource/lilita-one": "^5.3.0",
+    "motion": "^14.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "three": "^0.186.1",
+    "torph": "^0.1.3",
+    "valibot": "^1.5.0",
+    "ws": "^8.22.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@types/ws": "^8.18.2",
+    "@vitejs/plugin-react": "^6.1.2",
+    "playwright-core": "1.56.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  }
+}

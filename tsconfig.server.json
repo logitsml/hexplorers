@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node", "vite/client"]
+  },
+  "include": ["server", "src/engine", "src/net", "src/game/names.ts", "src/game/chat.ts", "tests/server", "tests/extras", "tests/accounts", "tests/community", "tests/e2e"]
+}

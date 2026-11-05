@@ -1,0 +1,9 @@
+flowchart LR
+  input["Player input<br>HUD, board, keys"] -->|command| host
+  subgraph host["GameHost: rules engine"]
+    direction TB
+    local["Solo: LocalHost<br>bots, saves"]
+    remote["Online: RemoteHost<br>the room server"]
+  end
+  host -->|"events,<br>a seat's view"| presenter["Presenter"]
+  presenter --> out["3D world, HUD,<br>sound and log"]

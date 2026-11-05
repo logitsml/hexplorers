@@ -1,0 +1,45 @@
+{
+  "id": "/",
+  "name": "Hexplorers",
+  "short_name": "Hexplorers",
+  "description": "A free 3D board game: explore a living island, trade with a crew of computer players and build your way to ten points, in your browser.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#1d5995",
+  "theme_color": "#ecdcb6",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/badge-96.png", "sizes": "96x96", "type": "image/png", "purpose": "monochrome" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Singleplayer",
+      "short_name": "Singleplayer",
+      "description": "A new island against the crew",
+      "url": "/?go=/new",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Multiplayer",
+      "short_name": "Multiplayer",
+      "description": "Play with friends online",
+      "url": "/?go=/multi",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "screenshots": [
+    { "src": "/social/hero.jpg", "sizes": "1600x840", "type": "image/jpeg", "form_factor": "wide", "label": "The island at golden hour, dice splashing into the sea" },
+    { "src": "/social/table.jpg", "sizes": "1200x900", "type": "image/jpeg", "form_factor": "wide", "label": "A game in progress" },
+    { "src": "/social/map.jpg", "sizes": "1200x900", "type": "image/jpeg", "form_factor": "wide", "label": "The flat map" },
+    { "src": "/social/night.jpg", "sizes": "1200x900", "type": "image/jpeg", "form_factor": "wide", "label": "A stormy night on the island" }
+  ]
+}
